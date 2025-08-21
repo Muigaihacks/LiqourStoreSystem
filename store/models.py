@@ -1,0 +1,146 @@
+from django.db import models
+from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
+from decimal import Decimal
+
+
+class Category(models.Model):
+    """Product categories like Whiskey, Wine, Beer, etc."""
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Categories"
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class Product(models.Model):
+    """Product model with barcode tracking"""
+    name = models.CharField(max_length=200)
+    barcode = models.CharField(max_length=50, unique=True, help_text="Unique barcode for this product")
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
+    description = models.TextField(blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    size = models.CharField(max_length=50, blank=True, help_text="e.g., 750ml, 1L, etc.")
+    age = models.CharField(max_length=50, blank=True, help_text="e.g., 12 years, 18 years, etc.")
+    brand = models.CharField(max_length=100, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category', 'name']
+
+    def __str__(self):
+        return f"{self.name} - {self.barcode}"
+
+    @property
+    def current_stock(self):
+        """Get current stock level for this product"""
+        inventory = self.inventory_set.first()
+        return inventory.quantity if inventory else 0
+
+
+class Inventory(models.Model):
+    """Inventory tracking for each product"""
+    product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='inventory')
+    quantity = models.PositiveIntegerField(default=0)
+    minimum_stock = models.PositiveIntegerField(default=5, help_text="Alert when stock goes below this level")
+    last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Inventories"
+
+    def __str__(self):
+        return f"{self.product.name} - Stock: {self.quantity}"
+
+    @property
+    def is_low_stock(self):
+        """Check if stock is below minimum level"""
+        return self.quantity <= self.minimum_stock
+
+
+class StockMovement(models.Model):
+    """Track all stock movements (in/out)"""
+    MOVEMENT_TYPES = [
+        ('IN', 'Stock In'),
+        ('OUT', 'Stock Out'),
+        ('ADJUSTMENT', 'Stock Adjustment'),
+    ]
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stock_movements')
+    movement_type = models.CharField(max_length=20, choices=MOVEMENT_TYPES)
+    quantity = models.IntegerField(help_text="Positive for IN, negative for OUT")
+    previous_stock = models.PositiveIntegerField()
+    new_stock = models.PositiveIntegerField()
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.product.name} - {self.movement_type} ({self.quantity})"
+
+
+class Sale(models.Model):
+    """Sales transaction"""
+    PAYMENT_METHODS = [
+        ('CASH', 'Cash'),
+        ('MPESA', 'M-Pesa'),
+        ('CARD', 'Card'),
+        ('BANK', 'Bank Transfer'),
+    ]
+
+    sale_number = models.CharField(max_length=20, unique=True)
+    employee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sales')
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=10, choices=PAYMENT_METHODS, default='CASH')
+    customer_name = models.CharField(max_length=100, blank=True)
+    customer_phone = models.CharField(max_length=15, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Sale #{self.sale_number} - {self.total_amount}"
+
+    def save(self, *args, **kwargs):
+        if not self.sale_number:
+            # Generate sale number
+            last_sale = Sale.objects.order_by('-id').first()
+            if last_sale:
+                last_number = int(last_sale.sale_number.split('-')[1])
+                self.sale_number = f"SALE-{last_number + 1:06d}"
+            else:
+                self.sale_number = "SALE-000001"
+        super().save(*args, **kwargs)
+
+
+class SaleItem(models.Model):
+    """Individual items in a sale"""
+    sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        ordering = ['sale', 'product']
+
+    def __str__(self):
+        return f"{self.product.name} x{self.quantity} - {self.total_price}"
+
+    def save(self, *args, **kwargs):
+        if not self.total_price:
+            self.total_price = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
