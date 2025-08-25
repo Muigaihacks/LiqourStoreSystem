@@ -149,6 +149,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins for development
 
 # Custom User Model (if needed later)
 # AUTH_USER_MODEL = 'store.User'

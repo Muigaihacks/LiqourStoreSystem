@@ -37,7 +37,7 @@ class InventoryAdmin(admin.ModelAdmin):
     list_display = ['product', 'quantity', 'minimum_stock', 'is_low_stock', 'last_updated']
     list_filter = ['product__category']
     search_fields = ['product__name', 'product__barcode']
-    readonly_fields = ['last_updated']
+    readonly_fields = ['last_updated']  # Only last_updated is read-only
     ordering = ['product__name']
 
     def is_low_stock(self, obj):
@@ -58,7 +58,35 @@ class StockMovementAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         if not change:  # Only for new records
             obj.created_by = request.user
+            
+            # Get the product's current inventory
+            inventory, created = Inventory.objects.get_or_create(
+                product=obj.product,
+                defaults={'quantity': 0, 'minimum_stock': 5}
+            )
+            
+            # Record previous stock
+            obj.previous_stock = inventory.quantity
+            
+            # Update inventory based on movement type
+            if obj.movement_type == 'IN':
+                inventory.quantity += obj.quantity
+                obj.new_stock = inventory.quantity
+            elif obj.movement_type == 'OUT':
+                inventory.quantity = max(0, inventory.quantity - obj.quantity)
+                obj.new_stock = inventory.quantity
+            elif obj.movement_type == 'ADJUSTMENT':
+                inventory.quantity = obj.quantity  # Set to exact quantity
+                obj.new_stock = inventory.quantity
+            
+            inventory.save()
         super().save_model(request, obj, form, change)
+    
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if obj is None:  # Only for new records
+            form.base_fields['movement_type'].initial = 'IN'
+        return form
 
 
 class SaleItemInline(admin.TabularInline):
@@ -93,10 +121,5 @@ class SaleAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(SaleItem)
-class SaleItemAdmin(admin.ModelAdmin):
-    list_display = ['sale', 'product', 'quantity', 'unit_price', 'total_price']
-    list_filter = ['sale__created_at']
-    search_fields = ['sale__sale_number', 'product__name']
-    readonly_fields = ['total_price']
-    ordering = ['-sale__created_at']
+# SaleItem admin removed - not needed for single-scan workflow
+# Each barcode scan = one sale, no need to manage individual sale items

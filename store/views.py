@@ -14,16 +14,16 @@ from .serializers import (
 )
 
 
-class CategoryViewSet(viewsets.ModelViewSet):
+class CategoryViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee interface
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
 
 
-class ProductViewSet(viewsets.ModelViewSet):
+class ProductViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee interface
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
     
     def get_queryset(self):
         queryset = Product.objects.all()
@@ -73,10 +73,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class InventoryViewSet(viewsets.ModelViewSet):
+class InventoryViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee interface
     queryset = Inventory.objects.all()
     serializer_class = InventorySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
     
     def get_queryset(self):
         queryset = Inventory.objects.all()
@@ -125,10 +125,10 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
         return queryset
 
 
-class SaleViewSet(viewsets.ModelViewSet):
+class SaleViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee interface
     queryset = Sale.objects.all()
     serializer_class = SaleSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
     
     def get_serializer_class(self):
         if self.action == 'create':

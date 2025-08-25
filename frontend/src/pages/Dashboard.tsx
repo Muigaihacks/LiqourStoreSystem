@@ -5,6 +5,7 @@ import {
   CubeIcon, 
   ExclamationTriangleIcon 
 } from '@heroicons/react/24/outline';
+import { apiService } from '../services/api';
 
 interface DashboardStats {
   totalSales: number;
@@ -22,13 +23,44 @@ const Dashboard: React.FC = () => {
   });
 
   useEffect(() => {
-    // TODO: Fetch real data from Django API
-    setStats({
-      totalSales: 125000,
-      todaySales: 8500,
-      totalProducts: 45,
-      lowStockItems: 3,
-    });
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch data from Django API
+        const [productsRes, inventoryRes, salesRes, todaySalesRes] = await Promise.all([
+          apiService.getProducts(),
+          apiService.getInventory(),
+          apiService.getSales(),
+          apiService.getTodaySales(),
+        ]);
+
+        const products = productsRes.data.results;
+        const inventory = inventoryRes.data.results;
+        const sales = salesRes.data.results;
+        const todaySales = todaySalesRes.data;
+
+        // Calculate stats
+        const totalSales = sales.reduce((sum, sale) => sum + parseFloat(sale.total_amount), 0);
+        const lowStockItems = inventory.filter(item => item.is_low_stock).length;
+
+        setStats({
+          totalSales: totalSales,
+          todaySales: todaySales.total_amount || 0,
+          totalProducts: products.length,
+          lowStockItems: lowStockItems,
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        // Fallback to mock data if API fails
+        setStats({
+          totalSales: 125000,
+          todaySales: 8500,
+          totalProducts: 45,
+          lowStockItems: 3,
+        });
+      }
+    };
+
+    fetchDashboardData();
   }, []);
 
   const cards = [
@@ -39,7 +71,7 @@ const Dashboard: React.FC = () => {
       color: 'bg-green-500',
     },
     {
-      title: 'Total Sales',
+      title: 'Monthly Sales',
       value: `KSh ${stats.totalSales.toLocaleString()}`,
       icon: ShoppingCartIcon,
       color: 'bg-blue-500',

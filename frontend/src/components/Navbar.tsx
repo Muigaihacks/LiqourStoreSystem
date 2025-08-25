@@ -13,10 +13,8 @@ const Navbar: React.FC = () => {
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: HomeIcon },
-    { name: 'POS', href: '/pos', icon: ShoppingCartIcon },
     { name: 'Inventory', href: '/inventory', icon: CubeIcon },
     { name: 'Sales', href: '/sales', icon: ChartBarIcon },
-    { name: 'Products', href: '/products', icon: TagIcon },
   ];
 
   return (

@@ -66,7 +66,7 @@ class Inventory(models.Model):
 
 
 class StockMovement(models.Model):
-    """Track all stock movements (in/out)"""
+    """Track all stock updates (in/out)"""
     MOVEMENT_TYPES = [
         ('IN', 'Stock In'),
         ('OUT', 'Stock Out'),
@@ -83,6 +83,8 @@ class StockMovement(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = "Stock Update"
+        verbose_name_plural = "Stock Updates"
         ordering = ['-created_at']
 
     def __str__(self):
