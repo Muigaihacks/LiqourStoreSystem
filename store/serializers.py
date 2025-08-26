@@ -64,34 +64,59 @@ class SaleSerializer(serializers.ModelSerializer):
         read_only_fields = ['sale_number']
 
 
-class SaleCreateSerializer(serializers.ModelSerializer):
-    items = SaleItemSerializer(many=True)
-    
-    class Meta:
-        model = Sale
-        fields = ['employee', 'payment_method', 'customer_name', 'customer_phone', 'notes', 'items']
+class SaleCreateSerializer(serializers.Serializer):
+    items = serializers.ListField()
+    payment_method = serializers.CharField(max_length=10, default='CASH')
+    customer_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    customer_phone = serializers.CharField(max_length=15, required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True)
     
     def create(self, validated_data):
         items_data = validated_data.pop('items')
-        sale = Sale.objects.create(**validated_data)
+        
+        # Create a default employee for now
+        from django.contrib.auth.models import User
+        default_employee, created = User.objects.get_or_create(
+            username='store_employee',
+            defaults={'first_name': 'Store', 'last_name': 'Employee'}
+        )
+        
+        # Generate sale number
+        import uuid
+        sale_number = f"SALE-{str(uuid.uuid4())[:8].upper()}"
+        
+        # Create sale
+        sale = Sale.objects.create(
+            sale_number=sale_number,
+            employee=default_employee,
+            total_amount=0,  # Will be calculated
+            payment_method=validated_data.get('payment_method', 'CASH'),
+            customer_name=validated_data.get('customer_name', ''),
+            customer_phone=validated_data.get('customer_phone', ''),
+            notes=validated_data.get('notes', '')
+        )
         
         total_amount = 0
         for item_data in items_data:
-            product = item_data['product']
+            product_id = item_data['product']
             quantity = item_data['quantity']
-            unit_price = item_data['unit_price']
+            unit_price = float(item_data['unit_price'])
+            
+            # Get the product
+            product = Product.objects.get(id=product_id)
             
             # Create sale item
             SaleItem.objects.create(
                 sale=sale,
                 product=product,
                 quantity=quantity,
-                unit_price=unit_price
+                unit_price=unit_price,
+                total_price=quantity * unit_price
             )
             
             # Update inventory
-            inventory = product.inventory_set.first()
-            if inventory:
+            try:
+                inventory = Inventory.objects.get(product=product)
                 previous_stock = inventory.quantity
                 inventory.quantity -= quantity
                 inventory.save()
@@ -104,15 +129,24 @@ class SaleCreateSerializer(serializers.ModelSerializer):
                     previous_stock=previous_stock,
                     new_stock=inventory.quantity,
                     notes=f"Sale #{sale.sale_number}",
-                    created_by=validated_data['employee']
+                    created_by=default_employee
                 )
+            except Inventory.DoesNotExist:
+                pass  # Skip inventory update if not found
             
             total_amount += quantity * unit_price
         
+        # Update sale total
         sale.total_amount = total_amount
         sale.save()
         
-        return sale
+        # Return sale data
+        return {
+            'id': sale.id,
+            'sale_number': sale.sale_number,
+            'total_amount': str(sale.total_amount),
+            'created_at': sale.created_at.isoformat()
+        }
 
 
 class StockInSerializer(serializers.Serializer):

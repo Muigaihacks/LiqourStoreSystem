@@ -11,4 +11,5 @@ router.register(r'sales', views.SaleViewSet)
 
 urlpatterns = [
     path('api/', include(router.urls)),
+    path('api/create-sale/', views.create_simple_sale, name='create_simple_sale'),
 ]

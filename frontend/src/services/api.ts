@@ -90,6 +90,8 @@ export const apiService = {
   getSales: () => api.get<PaginatedResponse<Sale>>('/sales/'),
   getTodaySales: () => api.get('/sales/today_sales/'),
   getSalesSummary: (days: number = 7) => api.get(`/sales/sales_summary/?days=${days}`),
+  createSale: (saleData: any) => api.post<Sale>('/create-sale/', saleData),
+  updateSale: (saleId: number, updateData: any) => api.patch<Sale>(`/sales/${saleId}/`, updateData),
   
   // Barcode lookup
   lookupBarcode: (barcode: string) => api.post<Product>('/products/barcode_lookup/', { barcode }),

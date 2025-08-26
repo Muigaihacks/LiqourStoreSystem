@@ -21,11 +21,30 @@ const Dashboard: React.FC = () => {
     totalProducts: 0,
     lowStockItems: 0,
   });
+  const [lowStockInventory, setLowStockInventory] = useState<any[]>([]);
+  const [recentSales, setRecentSales] = useState<any[]>([]);
+
+  const formatTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const saleDate = new Date(dateString);
+    const diffInMinutes = Math.floor((now.getTime() - saleDate.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays} days ago`;
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      console.log('🚀 Starting to fetch dashboard data...');
       try {
         // Fetch data from Django API
+        console.log('📡 Making API calls...');
         const [productsRes, inventoryRes, salesRes, todaySalesRes] = await Promise.all([
           apiService.getProducts(),
           apiService.getInventory(),
@@ -33,30 +52,57 @@ const Dashboard: React.FC = () => {
           apiService.getTodaySales(),
         ]);
 
+        console.log('✅ API responses received:', {
+          products: productsRes.data,
+          inventory: inventoryRes.data,
+          sales: salesRes.data,
+          todaySales: todaySalesRes.data,
+        });
+
         const products = productsRes.data.results;
         const inventory = inventoryRes.data.results;
         const sales = salesRes.data.results;
         const todaySales = todaySalesRes.data;
 
+        console.log('📊 Processed data:', {
+          productsCount: products.length,
+          inventoryCount: inventory.length,
+          salesCount: sales.length,
+          todaySalesData: todaySales,
+        });
+
         // Calculate stats
         const totalSales = sales.reduce((sum, sale) => sum + parseFloat(sale.total_amount), 0);
-        const lowStockItems = inventory.filter(item => item.is_low_stock).length;
+        const lowStockItems = inventory.filter(item => item.is_low_stock);
+        
 
-        setStats({
+        const newStats = {
           totalSales: totalSales,
           todaySales: todaySales.total_amount || 0,
           totalProducts: products.length,
-          lowStockItems: lowStockItems,
-        });
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        // Fallback to mock data if API fails
+          lowStockItems: lowStockItems.length,
+        };
+
+        console.log('📈 Final stats:', newStats);
+        // Force state update
+        setStats({ ...newStats });
+        setLowStockInventory(lowStockItems);
+        
+        // Set recent sales (latest 3 sales)
+        const recentSalesData = sales.slice(0, 3);
+        setRecentSales(recentSalesData);
+      } catch (error: any) {
+        console.error('❌ Error fetching dashboard data:', error);
+        console.error('Error details:', error.response?.data || error.message);
+        // Set empty stats if API fails
         setStats({
-          totalSales: 125000,
-          todaySales: 8500,
-          totalProducts: 45,
-          lowStockItems: 3,
+          totalSales: 0,
+          todaySales: 0,
+          totalProducts: 0,
+          lowStockItems: 0,
         });
+        setLowStockInventory([]);
+        setRecentSales([]);
       }
     };
 
@@ -117,40 +163,58 @@ const Dashboard: React.FC = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Sales</h2>
           <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-              <div>
-                <p className="font-medium">Sale #SALE-000123</p>
-                <p className="text-sm text-gray-600">2 minutes ago</p>
+            {recentSales.length > 0 ? (
+              recentSales.map((sale) => (
+                <div key={sale.id} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                  <div>
+                    <p className="font-medium">Sale #{sale.sale_number}</p>
+                    <p className="text-sm text-gray-600">{formatTimeAgo(sale.created_at)}</p>
+                  </div>
+                  <span className="font-semibold text-green-600">
+                    KSh {parseFloat(sale.total_amount).toLocaleString()}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-6">
+                <div className="text-gray-500">
+                  <svg className="mx-auto h-8 w-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <p className="text-sm font-medium text-gray-900">No recent sales</p>
+                  <p className="text-xs text-gray-500">Sales will appear here once transactions are made</p>
+                </div>
               </div>
-              <span className="font-semibold text-green-600">KSh 2,500</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-              <div>
-                <p className="font-medium">Sale #SALE-000122</p>
-                <p className="text-sm text-gray-600">15 minutes ago</p>
-              </div>
-              <span className="font-semibold text-green-600">KSh 1,800</span>
-            </div>
+            )}
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Low Stock Alerts</h2>
           <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-red-50 rounded">
-              <div>
-                <p className="font-medium">Glenfiddich 12yr 750ml</p>
-                <p className="text-sm text-gray-600">Only 2 bottles left</p>
+            {lowStockInventory.length > 0 ? (
+              lowStockInventory.map((item) => (
+                <div key={item.id} className="flex justify-between items-center p-3 bg-red-50 rounded">
+                  <div>
+                    <p className="font-medium">{item.product_name}</p>
+                    <p className="text-sm text-gray-600">
+                      Only {item.quantity} left (minimum: {item.minimum_stock})
+                    </p>
+                  </div>
+                  <span className="text-red-600 font-semibold">{item.quantity}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <div className="mx-auto h-12 w-12 text-green-400">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">All items in stock</h3>
+                <p className="mt-1 text-sm text-gray-500">No items are currently below minimum stock levels.</p>
               </div>
-              <span className="text-red-600 font-semibold">2</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-red-50 rounded">
-              <div>
-                <p className="font-medium">Jack Daniel's 1L</p>
-                <p className="text-sm text-gray-600">Only 1 bottle left</p>
-              </div>
-              <span className="text-red-600 font-semibold">1</span>
-            </div>
+            )}
           </div>
         </div>
       </div>

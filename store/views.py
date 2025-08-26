@@ -1,10 +1,12 @@
 from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
+from django.contrib.auth.models import User
+import uuid
 
 from .models import Category, Product, Inventory, StockMovement, Sale, SaleItem
 from .serializers import (
@@ -125,7 +127,86 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
         return queryset
 
 
-class SaleViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee interface
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def create_simple_sale(request):
+    """Simple sale creation for debugging"""
+    try:
+        data = request.data
+        items_data = data.get('items', [])
+        
+        if not items_data:
+            return Response({'error': 'No items provided'}, status=400)
+        
+        # Get or create default employee
+        default_employee, created = User.objects.get_or_create(
+            username='store_employee',
+            defaults={'first_name': 'Store', 'last_name': 'Employee'}
+        )
+        
+        # Generate sale number
+        sale_number = f"SALE-{str(uuid.uuid4())[:8].upper()}"
+        
+        # Create sale
+        sale = Sale.objects.create(
+            sale_number=sale_number,
+            employee=default_employee,
+            total_amount=0,
+            payment_method=data.get('payment_method', 'CASH'),
+            customer_name=data.get('customer_name', ''),
+            customer_phone=data.get('customer_phone', ''),
+            notes=data.get('notes', '')
+        )
+        
+        total_amount = 0
+        for item_data in items_data:
+            try:
+                product_id = item_data['product']
+                quantity = int(item_data['quantity'])
+                unit_price = float(item_data['unit_price'])
+                
+                # Get product
+                product = Product.objects.get(id=product_id)
+                
+                # Create sale item
+                sale_item = SaleItem.objects.create(
+                    sale=sale,
+                    product=product,
+                    quantity=quantity,
+                    unit_price=unit_price,
+                    total_price=quantity * unit_price
+                )
+                
+                total_amount += quantity * unit_price
+                
+                # Update inventory
+                try:
+                    inventory = Inventory.objects.get(product=product)
+                    inventory.quantity -= quantity
+                    inventory.save()
+                except Inventory.DoesNotExist:
+                    pass  # Skip if no inventory record
+                
+            except Exception as e:
+                return Response({'error': f'Error processing item: {str(e)}'}, status=400)
+        
+        # Update sale total
+        sale.total_amount = total_amount
+        sale.save()
+        
+        return Response({
+            'success': True,
+            'sale_id': sale.id,
+            'sale_number': sale.sale_number,
+            'total_amount': str(sale.total_amount),
+            'message': f'Sale created successfully: {sale.sale_number}'
+        })
+        
+    except Exception as e:
+        return Response({'error': f'Sale creation failed: {str(e)}'}, status=500)
+
+
+class SaleViewSet(viewsets.ModelViewSet):  # Allow create operations for sales
     queryset = Sale.objects.all()
     serializer_class = SaleSerializer
     permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
