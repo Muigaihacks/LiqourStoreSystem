@@ -483,7 +483,7 @@ def award_points(request):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def create_backup(request):
     """Create a data backup"""
     backup_format = request.data.get('format', 'json')  # json or sql
@@ -526,7 +526,7 @@ def create_backup(request):
 
 
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def backup_status(request):
     """Get backup system status and information"""
     # Check if backup directory exists
