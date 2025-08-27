@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CalendarIcon, CurrencyDollarIcon, PlusIcon, PrinterIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import { apiService } from '../services/api';
 import QuickSale from '../components/QuickSale';
+import CustomerLookup from '../components/CustomerLookup';
 import createReceiptGenerator from '../components/ReceiptGenerator';
 
 interface Sale {
@@ -15,6 +16,7 @@ const Sales: React.FC = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState('today');
   const [showQuickSale, setShowQuickSale] = useState(false);
+  const [showCustomerLookup, setShowCustomerLookup] = useState(false);
 
   useEffect(() => {
     const fetchSales = async () => {
@@ -37,28 +39,70 @@ const Sales: React.FC = () => {
     return new Date(dateString).toLocaleString();
   };
 
-  const handlePrintReceipt = (sale: Sale) => {
-    const receiptData = {
-      sale_number: sale.sale_number,
-      total_amount: sale.total_amount,
-      created_at: sale.created_at,
-      payment_method: 'MPESA' // Default to MPESA for single-item sales
-    };
-    
-    const receiptGenerator = createReceiptGenerator({ saleData: receiptData });
-    receiptGenerator.printReceipt();
+  const handlePrintReceipt = async (sale: Sale) => {
+    try {
+      // Fetch detailed sale data with items
+      const detailedSaleResponse = await apiService.getSale(sale.id);
+      const detailedSale = detailedSaleResponse.data;
+      
+      const receiptData = {
+        sale_number: detailedSale.sale_number,
+        total_amount: detailedSale.total_amount,
+        created_at: detailedSale.created_at,
+        payment_method: detailedSale.payment_method || 'CASH',
+        customer_phone: detailedSale.customer_phone || '',
+        items: detailedSale.items || []
+      };
+      
+      console.log('🧾 Print Receipt - Detailed sale data:', receiptData);
+      
+      const receiptGenerator = createReceiptGenerator({ saleData: receiptData });
+      receiptGenerator.printReceipt();
+    } catch (error) {
+      console.error('Error fetching detailed sale data:', error);
+      // Fallback to basic data
+      const receiptData = {
+        sale_number: sale.sale_number,
+        total_amount: sale.total_amount,
+        created_at: sale.created_at,
+        payment_method: 'CASH'
+      };
+      const receiptGenerator = createReceiptGenerator({ saleData: receiptData });
+      receiptGenerator.printReceipt();
+    }
   };
 
-  const handleDownloadReceipt = (sale: Sale) => {
-    const receiptData = {
-      sale_number: sale.sale_number,
-      total_amount: sale.total_amount,
-      created_at: sale.created_at,
-      payment_method: 'MPESA' // Default to MPESA for single-item sales
-    };
-    
-    const receiptGenerator = createReceiptGenerator({ saleData: receiptData });
-    receiptGenerator.downloadReceipt();
+  const handleDownloadReceipt = async (sale: Sale) => {
+    try {
+      // Fetch detailed sale data with items
+      const detailedSaleResponse = await apiService.getSale(sale.id);
+      const detailedSale = detailedSaleResponse.data;
+      
+      const receiptData = {
+        sale_number: detailedSale.sale_number,
+        total_amount: detailedSale.total_amount,
+        created_at: detailedSale.created_at,
+        payment_method: detailedSale.payment_method || 'CASH',
+        customer_phone: detailedSale.customer_phone || '',
+        items: detailedSale.items || []
+      };
+      
+      console.log('🧾 Download Receipt - Detailed sale data:', receiptData);
+      
+      const receiptGenerator = createReceiptGenerator({ saleData: receiptData });
+      receiptGenerator.downloadReceipt();
+    } catch (error) {
+      console.error('Error fetching detailed sale data:', error);
+      // Fallback to basic data
+      const receiptData = {
+        sale_number: sale.sale_number,
+        total_amount: sale.total_amount,
+        created_at: sale.created_at,
+        payment_method: 'CASH'
+      };
+      const receiptGenerator = createReceiptGenerator({ saleData: receiptData });
+      receiptGenerator.downloadReceipt();
+    }
   };
 
   return (
@@ -75,6 +119,13 @@ const Sales: React.FC = () => {
           >
             <PlusIcon className="h-4 w-4 mr-2" />
             {showQuickSale ? 'Hide Quick Sale' : 'Quick Sale'}
+          </button>
+          <button
+            onClick={() => setShowCustomerLookup(!showCustomerLookup)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+          >
+            <PlusIcon className="h-4 w-4 mr-2" />
+            {showCustomerLookup ? 'Hide Customer Points' : 'Customer Points'}
           </button>
           <select
             value={selectedPeriod}
@@ -93,6 +144,13 @@ const Sales: React.FC = () => {
       {showQuickSale && (
         <div className="border-t border-gray-200 pt-6">
           <QuickSale />
+        </div>
+      )}
+
+      {/* Customer Points Component */}
+      {showCustomerLookup && (
+        <div className="border-t border-gray-200 pt-6">
+          <CustomerLookup />
         </div>
       )}
 

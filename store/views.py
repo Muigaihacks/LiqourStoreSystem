@@ -2,17 +2,24 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Count, F
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django.contrib.auth.models import User
+from django.http import HttpResponse
+from django.core.management import call_command
+from django.conf import settings
 import uuid
+import os
+import tempfile
+import zipfile
 
-from .models import Category, Product, Inventory, StockMovement, Sale, SaleItem
+from .models import Category, Product, Inventory, StockMovement, Sale, SaleItem, Customer, PointTransaction
 from .serializers import (
     CategorySerializer, ProductSerializer, InventorySerializer,
     StockMovementSerializer, SaleSerializer, SaleCreateSerializer,
-    StockInSerializer, BarcodeLookupSerializer, UserSerializer
+    StockInSerializer, BarcodeLookupSerializer, UserSerializer,
+    CustomerSerializer, PointTransactionSerializer, CustomerRegistrationSerializer
 )
 
 
@@ -70,9 +77,79 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee i
     @action(detail=False, methods=['get'])
     def low_stock(self, request):
         """Get products with low stock"""
-        products = Product.objects.filter(inventory__quantity__lte=models.F('inventory__minimum_stock'))
+        products = Product.objects.filter(inventory__quantity__lte=F('inventory__minimum_stock'))
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def top_selling(self, request):
+        """Get top-selling products with analytics"""
+        days = int(request.query_params.get('days', 30))  # Default to last 30 days
+        date_from = timezone.now() - timedelta(days=days)
+        
+        # Get top products by quantity sold
+        top_by_quantity = (
+            Product.objects
+            .filter(saleitem__sale__created_at__gte=date_from)
+            .annotate(
+                total_quantity_sold=Sum('saleitem__quantity'),
+                total_sales_count=Count('saleitem__sale', distinct=True),
+                total_revenue=Sum(F('saleitem__quantity') * F('saleitem__unit_price')),
+                total_profit=Sum(F('saleitem__quantity') * (F('price') - F('buying_price')))
+            )
+            .order_by('-total_quantity_sold')[:10]
+        )
+        
+        # Get top products by revenue
+        top_by_revenue = (
+            Product.objects
+            .filter(saleitem__sale__created_at__gte=date_from)
+            .annotate(
+                total_quantity_sold=Sum('saleitem__quantity'),
+                total_sales_count=Count('saleitem__sale', distinct=True),
+                total_revenue=Sum(F('saleitem__quantity') * F('saleitem__unit_price')),
+                total_profit=Sum(F('saleitem__quantity') * (F('price') - F('buying_price')))
+            )
+            .order_by('-total_revenue')[:10]
+        )
+        
+        # Get top products by profit
+        top_by_profit = (
+            Product.objects
+            .filter(saleitem__sale__created_at__gte=date_from)
+            .annotate(
+                total_quantity_sold=Sum('saleitem__quantity'),
+                total_sales_count=Count('saleitem__sale', distinct=True),
+                total_revenue=Sum(F('saleitem__quantity') * F('saleitem__unit_price')),
+                total_profit=Sum(F('saleitem__quantity') * (F('price') - F('buying_price')))
+            )
+            .order_by('-total_profit')[:10]
+        )
+        
+        def serialize_products(products):
+            return [
+                {
+                    'id': p.id,
+                    'name': p.name,
+                    'barcode': p.barcode,
+                    'category_name': p.category.name,
+                    'price': str(p.price),
+                    'buying_price': str(p.buying_price),
+                    'profit_margin': round(p.profit_margin, 1),
+                    'total_quantity_sold': p.total_quantity_sold or 0,
+                    'total_sales_count': p.total_sales_count or 0,
+                    'total_revenue': str(p.total_revenue or 0),
+                    'total_profit': str(p.total_profit or 0),
+                }
+                for p in products
+            ]
+        
+        return Response({
+            'period_days': days,
+            'top_by_quantity': serialize_products(top_by_quantity),
+            'top_by_revenue': serialize_products(top_by_revenue),
+            'top_by_profit': serialize_products(top_by_profit),
+        })
 
 
 class InventoryViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee interface
@@ -85,7 +162,7 @@ class InventoryViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee
         low_stock = self.request.query_params.get('low_stock', None)
         
         if low_stock == 'true':
-            queryset = queryset.filter(quantity__lte=models.F('minimum_stock'))
+            queryset = queryset.filter(quantity__lte=F('minimum_stock'))
         
         return queryset
     
@@ -283,6 +360,212 @@ class SaleViewSet(viewsets.ModelViewSet):  # Allow create operations for sales
         })
 
 
-# Import missing modules
-from django.db import models
-from django.db.models import Count
+class CustomerViewSet(viewsets.ModelViewSet):
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+    permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
+    
+    def get_queryset(self):
+        queryset = Customer.objects.all()
+        phone = self.request.query_params.get('phone', None)
+        
+        if phone:
+            queryset = queryset.filter(phone_number__icontains=phone)
+        
+        return queryset
+    
+    @action(detail=False, methods=['get'])
+    def prize_eligible(self, request):
+        """Get customers eligible for prizes (100+ points)"""
+        threshold = int(request.query_params.get('threshold', 100))
+        eligible_customers = Customer.objects.filter(
+            is_active=True
+        ).annotate(
+            available_points=F('total_points') - F('points_redeemed')
+        ).filter(available_points__gte=threshold).order_by('-total_points')
+        
+        serializer = CustomerSerializer(eligible_customers, many=True)
+        return Response({
+            'threshold': threshold,
+            'count': eligible_customers.count(),
+            'customers': serializer.data
+        })
+    
+    @action(detail=False, methods=['post'])
+    def register(self, request):
+        """Register a new customer"""
+        serializer = CustomerRegistrationSerializer(data=request.data)
+        if serializer.is_valid():
+            customer = serializer.save()
+            customer_serializer = CustomerSerializer(customer)
+            return Response(customer_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def award_points(request):
+    """Award or redeem points for a customer"""
+    phone_number = request.data.get('phone_number')
+    sale_amount = float(request.data.get('sale_amount', 0))
+    sale_id = request.data.get('sale_id')
+    points_to_redeem = request.data.get('points_to_redeem', 0)
+    
+    if not phone_number:
+        return Response({'error': 'Phone number required'}, 
+                       status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        customer = Customer.objects.get(phone_number=phone_number, is_active=True)
+        
+        if sale_amount < 0:  # Redemption (negative sale amount)
+            # Handle points redemption
+            points_to_redeem = int(points_to_redeem) if points_to_redeem else int(abs(sale_amount))
+            
+            if customer.available_points < points_to_redeem:
+                return Response({
+                    'error': f'Insufficient points. Available: {customer.available_points}, Required: {points_to_redeem}'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Create redemption transaction
+            PointTransaction.objects.create(
+                customer=customer,
+                transaction_type='REDEEMED',
+                points=-points_to_redeem,  # Negative for redemption
+                sale_id=sale_id,
+                notes=f"Points redeemed for purchase (KSh {abs(sale_amount)})",
+                created_by=request.user if request.user.is_authenticated else None
+            )
+            
+            return Response({
+                'success': True,
+                'customer_name': customer.name,
+                'points_redeemed': points_to_redeem,
+                'remaining_points': customer.available_points,
+                'message': f'{points_to_redeem} points redeemed successfully'
+            })
+            
+        elif sale_amount > 0:  # Award points (positive sale amount)
+            # Calculate points: 1 point per KSh 100 spent
+            points_to_award = int(sale_amount // 100)
+            
+            if points_to_award > 0:
+                # Create point transaction
+                PointTransaction.objects.create(
+                    customer=customer,
+                    transaction_type='EARNED',
+                    points=points_to_award,
+                    sale_id=sale_id,
+                    notes=f"Points earned from sale (KSh {sale_amount})",
+                    created_by=request.user if request.user.is_authenticated else None
+                )
+                
+                return Response({
+                    'success': True,
+                    'customer_name': customer.name,
+                    'points_awarded': points_to_award,
+                    'total_points': customer.total_points,
+                    'available_points': customer.available_points
+                })
+            else:
+                return Response({
+                    'success': True,
+                    'message': 'No points awarded (minimum KSh 100 required)',
+                    'points_awarded': 0
+                })
+        else:
+            return Response({'error': 'Invalid sale amount'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+            
+    except Customer.DoesNotExist:
+        return Response({'error': 'Customer not found'}, 
+                       status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def create_backup(request):
+    """Create a data backup"""
+    backup_format = request.data.get('format', 'json')  # json or sql
+    include_media = request.data.get('include_media', False)
+    
+    if backup_format not in ['json', 'sql']:
+        return Response({'error': 'Invalid format. Use "json" or "sql"'}, 
+                       status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Create temporary directory for backup
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Run backup command
+            call_command('backup_data', 
+                        format=backup_format,
+                        output_dir=temp_dir,
+                        include_media=include_media)
+            
+            # Find the created backup file
+            backup_files = [f for f in os.listdir(temp_dir) 
+                           if f.startswith('liquor_store_backup_')]
+            
+            if not backup_files:
+                return Response({'error': 'Backup creation failed'}, 
+                               status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            backup_file = backup_files[0]
+            backup_path = os.path.join(temp_dir, backup_file)
+            
+            # Read backup file and return as download
+            with open(backup_path, 'rb') as f:
+                response = HttpResponse(f.read(), 
+                                      content_type='application/octet-stream')
+                response['Content-Disposition'] = f'attachment; filename="{backup_file}"'
+                return response
+                
+    except Exception as e:
+        return Response({'error': f'Backup creation failed: {str(e)}'}, 
+                       status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def backup_status(request):
+    """Get backup system status and information"""
+    # Check if backup directory exists
+    backup_dir = 'backups'
+    backups = []
+    
+    if os.path.exists(backup_dir):
+        backup_files = [f for f in os.listdir(backup_dir) 
+                       if f.startswith('liquor_store_backup_')]
+        
+        for backup_file in sorted(backup_files, reverse=True):
+            file_path = os.path.join(backup_dir, backup_file)
+            file_stat = os.stat(file_path)
+            
+            backups.append({
+                'filename': backup_file,
+                'size': file_stat.st_size,
+                'created_at': datetime.fromtimestamp(file_stat.st_ctime).isoformat(),
+                'format': 'json' if backup_file.endswith('.json') else 'archive'
+            })
+    
+    # Get database statistics
+    stats = {
+        'categories': Category.objects.count(),
+        'products': Product.objects.count(),
+        'inventory_items': Inventory.objects.count(),
+        'stock_movements': StockMovement.objects.count(),
+        'sales': Sale.objects.count(),
+        'customers': Customer.objects.count(),
+        'point_transactions': PointTransaction.objects.count(),
+    }
+    
+    return Response({
+        'backup_system': {
+            'available': True,
+            'formats_supported': ['json', 'sql'],
+            'media_backup_supported': True,
+        },
+        'recent_backups': backups[:10],  # Last 10 backups
+        'database_stats': stats,
+        'last_backup': backups[0] if backups else None
+    })

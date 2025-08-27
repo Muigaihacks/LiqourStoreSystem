@@ -58,11 +58,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, isLoading = false, error }) => {
                 name="username"
                 type="text"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-white border-opacity-30 placeholder-gray-300 text-white bg-white bg-opacity-10 rounded-t-md focus:outline-none focus:ring-2 focus:ring-white focus:border-white focus:z-10 sm:text-sm backdrop-blur-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-white border-opacity-30 placeholder-gray-300 text-gray-900 bg-white bg-opacity-90 rounded-t-md focus:outline-none focus:ring-2 focus:ring-white focus:border-white focus:z-10 sm:text-sm backdrop-blur-sm focus:bg-white"
                 placeholder="Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={isLoading}
+                style={{
+                  WebkitAppearance: 'none',
+                  color: '#111827',
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)'
+                }}
               />
             </div>
             <div className="relative">
@@ -74,11 +79,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, isLoading = false, error }) => {
                 name="password"
                 type={showPassword ? 'text' : 'password'}
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 pr-10 border border-white border-opacity-30 placeholder-gray-300 text-white bg-white bg-opacity-10 rounded-b-md focus:outline-none focus:ring-2 focus:ring-white focus:border-white focus:z-10 sm:text-sm backdrop-blur-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 pr-10 border border-white border-opacity-30 placeholder-gray-300 text-gray-900 bg-white bg-opacity-90 rounded-b-md focus:outline-none focus:ring-2 focus:ring-white focus:border-white focus:z-10 sm:text-sm backdrop-blur-sm focus:bg-white"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
+                style={{
+                  WebkitAppearance: 'none',
+                  color: '#111827',
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)'
+                }}
               />
               <button
                 type="button"

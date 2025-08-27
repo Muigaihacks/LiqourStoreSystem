@@ -19,6 +19,6 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('store.urls')),
+    path('', include('store.urls')),  # This includes the /api/ paths from store.urls
     path('api-auth/', include('rest_framework.urls')),
 ]

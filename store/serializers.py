@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Category, Product, Inventory, StockMovement, Sale, SaleItem
+from .models import Category, Product, Inventory, StockMovement, Sale, SaleItem, Customer, PointTransaction
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -192,3 +192,82 @@ class BarcodeLookupSerializer(serializers.Serializer):
         except Product.DoesNotExist:
             raise serializers.ValidationError("Product with this barcode not found or inactive")
         return value
+
+
+class CustomerSerializer(serializers.ModelSerializer):
+    available_points = serializers.ReadOnlyField()
+    total_spent = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = Customer
+        fields = '__all__'
+        read_only_fields = ['total_points', 'points_redeemed', 'created_at', 'updated_at']
+
+
+class PointTransactionSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source='customer.name', read_only=True)
+    customer_phone = serializers.CharField(source='customer.phone_number', read_only=True)
+    
+    class Meta:
+        model = PointTransaction
+        fields = '__all__'
+        read_only_fields = ['created_at']
+
+
+class CustomerRegistrationSerializer(serializers.Serializer):
+    """Simplified serializer for customer registration"""
+    name = serializers.CharField(max_length=100)
+    phone_number = serializers.CharField(max_length=15)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    
+    def validate_phone_number(self, value):
+        # Clean the phone number
+        phone = value.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+        
+        # Normalize to standard format and generate all possible variations
+        phone_variations = self._get_kenyan_phone_variations(phone)
+        
+        # Check for existing customer with any of these phone number variations
+        existing_customers = Customer.objects.filter(phone_number__in=phone_variations)
+        
+        if existing_customers.exists():
+            existing_customer = existing_customers.first()
+            raise serializers.ValidationError(
+                f"Phone number already registered to {existing_customer.name}. "
+                f"Customer already has {existing_customer.available_points} points."
+            )
+        
+        # Return the cleaned phone number
+        return phone
+    
+    def _get_kenyan_phone_variations(self, phone):
+        """Generate all possible variations of a Kenyan phone number"""
+        variations = set()
+        
+        # Remove any leading + or country code
+        if phone.startswith('+254'):
+            phone = phone[4:]
+        elif phone.startswith('254'):
+            phone = phone[3:]
+        elif phone.startswith('0'):
+            phone = phone[1:]
+        
+        # Add the base number to variations
+        variations.add(phone)
+        
+        # Add all possible formats
+        variations.add(f'0{phone}')           # 0712345678
+        variations.add(f'+254{phone}')       # +254712345678
+        variations.add(f'254{phone}')        # 254712345678
+        
+        # Handle cases where user might have entered with leading zero
+        if phone.startswith('0'):
+            phone_without_zero = phone[1:]
+            variations.add(phone_without_zero)
+            variations.add(f'+254{phone_without_zero}')
+            variations.add(f'254{phone_without_zero}')
+        
+        return list(variations)
+    
+    def create(self, validated_data):
+        return Customer.objects.create(**validated_data)

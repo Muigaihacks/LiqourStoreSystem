@@ -6,6 +6,7 @@ import {
   ExclamationTriangleIcon 
 } from '@heroicons/react/24/outline';
 import { apiService } from '../services/api';
+import BackupManager from '../components/BackupManager';
 
 interface DashboardStats {
   totalSales: number;
@@ -23,6 +24,7 @@ const Dashboard: React.FC = () => {
   });
   const [lowStockInventory, setLowStockInventory] = useState<any[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
+  const [topSellingProducts, setTopSellingProducts] = useState<any[]>([]);
 
   const formatTimeAgo = (dateString: string) => {
     const now = new Date();
@@ -45,11 +47,12 @@ const Dashboard: React.FC = () => {
       try {
         // Fetch data from Django API
         console.log('📡 Making API calls...');
-        const [productsRes, inventoryRes, salesRes, todaySalesRes] = await Promise.all([
+        const [productsRes, inventoryRes, salesRes, todaySalesRes, topSellingRes] = await Promise.all([
           apiService.getProducts(),
           apiService.getInventory(),
           apiService.getSales(),
           apiService.getTodaySales(),
+          apiService.getTopSellingProducts(30), // Last 30 days
         ]);
 
         console.log('✅ API responses received:', {
@@ -57,6 +60,7 @@ const Dashboard: React.FC = () => {
           inventory: inventoryRes.data,
           sales: salesRes.data,
           todaySales: todaySalesRes.data,
+          topSelling: topSellingRes.data,
         });
 
         const products = productsRes.data.results;
@@ -91,6 +95,10 @@ const Dashboard: React.FC = () => {
         // Set recent sales (latest 3 sales)
         const recentSalesData = sales.slice(0, 3);
         setRecentSales(recentSalesData);
+        
+        // Set top-selling products (top 5 by quantity)
+        const topSellingData = topSellingRes.data.top_by_quantity.slice(0, 5);
+        setTopSellingProducts(topSellingData);
       } catch (error: any) {
         console.error('❌ Error fetching dashboard data:', error);
         console.error('Error details:', error.response?.data || error.message);
@@ -103,6 +111,7 @@ const Dashboard: React.FC = () => {
         });
         setLowStockInventory([]);
         setRecentSales([]);
+        setTopSellingProducts([]);
       }
     };
 
@@ -217,6 +226,55 @@ const Dashboard: React.FC = () => {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Top-Selling Products Section */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Top-Selling Products (Last 30 Days)</h2>
+        <div className="space-y-3">
+          {topSellingProducts.length > 0 ? (
+            topSellingProducts.map((product, index) => (
+              <div key={product.id} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-indigo-100 text-indigo-600 text-sm font-medium">
+                      #{index + 1}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{product.name}</p>
+                    <p className="text-sm text-gray-600">
+                      {product.category_name} • {product.total_quantity_sold} sold • {product.profit_margin}% margin
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-green-600">
+                    KSh {parseFloat(product.total_revenue).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Profit: KSh {parseFloat(product.total_profit).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8">
+              <div className="mx-auto h-12 w-12 text-gray-400">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No sales data yet</h3>
+              <p className="mt-1 text-sm text-gray-500">Top-selling products will appear here once sales are made.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Data Backup Section */}
+      <div className="mt-8">
+        <BackupManager />
       </div>
     </div>
   );

@@ -46,10 +46,20 @@ export interface Inventory {
   last_updated: string;
 }
 
+export interface SaleItem {
+  id: number;
+  product: number;
+  product_name: string;
+  quantity: number;
+  unit_price: string;
+  total_price: string;
+}
+
 export interface Sale {
   id: number;
   sale_number: string;
   employee: number;
+  employee_name: string;
   total_amount: string;
   payment_method: string;
   customer_name: string;
@@ -57,6 +67,7 @@ export interface Sale {
   notes: string;
   created_at: string;
   updated_at: string;
+  items?: SaleItem[]; // Optional for list view, included in detail view
 }
 
 export interface DashboardStats {
@@ -79,6 +90,7 @@ export const apiService = {
   // Products
   getProducts: () => api.get<PaginatedResponse<Product>>('/products/'),
   getProduct: (id: number) => api.get<Product>(`/products/${id}/`),
+  getTopSellingProducts: (days: number = 30) => api.get(`/products/top_selling/?days=${days}`),
   
   // Categories
   getCategories: () => api.get<PaginatedResponse<Category>>('/categories/'),
@@ -88,6 +100,7 @@ export const apiService = {
   
   // Sales
   getSales: () => api.get<PaginatedResponse<Sale>>('/sales/'),
+  getSale: (id: number) => api.get<Sale>(`/sales/${id}/`), // Get detailed sale with items
   getTodaySales: () => api.get('/sales/today_sales/'),
   getSalesSummary: (days: number = 7) => api.get(`/sales/sales_summary/?days=${days}`),
   createSale: (saleData: any) => api.post<Sale>('/create-sale/', saleData),
@@ -95,6 +108,18 @@ export const apiService = {
   
   // Barcode lookup
   lookupBarcode: (barcode: string) => api.post<Product>('/products/barcode_lookup/', { barcode }),
+  
+  // Customers
+  getCustomers: () => api.get('/customers/'),
+  getCustomer: (id: number) => api.get(`/customers/${id}/`),
+  registerCustomer: (customerData: any) => api.post('/customers/register/', customerData),
+  getPrizeEligibleCustomers: (threshold: number = 100) => api.get(`/customers/prize_eligible/?threshold=${threshold}`),
+  awardPoints: (pointsData: any) => api.post('/award-points/', pointsData),
+
+  // Backup
+  createBackup: (format: 'json' | 'sql' = 'json', includeMedia: boolean = false) => 
+    api.post('/backup/create/', { format, include_media: includeMedia }, { responseType: 'blob' }),
+  getBackupStatus: () => api.get('/backup/status/'),
 };
 
 export default api;

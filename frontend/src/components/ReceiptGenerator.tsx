@@ -163,12 +163,125 @@ const createReceiptGenerator = ({
   };
 
   const printReceipt = () => {
-    const receiptWindow = window.open('', '_blank');
-    if (receiptWindow) {
-      receiptWindow.document.write(generateReceiptHTML());
-      receiptWindow.document.close();
-      receiptWindow.focus();
-      receiptWindow.print();
+    console.log('🖨️ Print receipt clicked');
+    
+    try {
+      // Create a new window with specific properties
+      const receiptWindow = window.open('', 'receipt_print', 
+        'width=400,height=600,scrollbars=yes,resizable=yes,toolbar=no,menubar=no,status=no');
+      
+      if (receiptWindow && receiptWindow.document) {
+        console.log('🖨️ New window opened successfully');
+        
+        // Write the HTML content
+        const htmlContent = generateReceiptHTML();
+        receiptWindow.document.open();
+        receiptWindow.document.write(htmlContent);
+        receiptWindow.document.close();
+        
+        // Use a more reliable method to wait for content to load
+        const printWhenReady = () => {
+          if (receiptWindow.document.readyState === 'complete') {
+            console.log('🖨️ Document ready, printing...');
+            receiptWindow.focus();
+            
+            // Add a small delay to ensure rendering is complete
+            setTimeout(() => {
+              receiptWindow.print();
+              
+              // Auto-close after printing (optional)
+              receiptWindow.addEventListener('afterprint', () => {
+                receiptWindow.close();
+              });
+              
+              // Fallback close after 3 seconds
+              setTimeout(() => {
+                if (!receiptWindow.closed) {
+                  receiptWindow.close();
+                }
+              }, 3000);
+            }, 100);
+          } else {
+            // If not ready, try again in 100ms
+            setTimeout(printWhenReady, 100);
+          }
+        };
+        
+        // Start checking if document is ready
+        printWhenReady();
+        
+      } else {
+        console.log('🚫 Popup blocked or failed to open, trying iframe method');
+        printWithIframe();
+      }
+    } catch (error) {
+      console.error('🚫 Print error:', error);
+      printWithIframe();
+    }
+  };
+
+  const printWithIframe = () => {
+    console.log('🖨️ Using iframe print method');
+    
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.top = '-10000px';
+    iframe.style.left = '-10000px';
+    iframe.style.width = '400px';
+    iframe.style.height = '600px';
+    iframe.style.border = 'none';
+    iframe.style.visibility = 'hidden';
+    
+    document.body.appendChild(iframe);
+    
+    const iframeDoc = iframe.contentWindow?.document;
+    if (iframeDoc) {
+      const htmlContent = generateReceiptHTML();
+      
+      iframeDoc.open();
+      iframeDoc.write(htmlContent);
+      iframeDoc.close();
+      
+      // Wait for content to load
+      iframe.onload = () => {
+        try {
+          console.log('🖨️ Iframe content loaded, attempting to print');
+          
+          // Wait a bit more to ensure everything is rendered
+          setTimeout(() => {
+            if (iframe.contentWindow) {
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
+              
+              // Clean up after printing
+              setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                  document.body.removeChild(iframe);
+                }
+              }, 1000);
+            }
+          }, 200);
+          
+        } catch (error) {
+          console.error('🚫 Iframe print error:', error);
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+          alert('Print failed. Your browser may be blocking printing. Please:\n1. Allow popups for this site, or\n2. Use the Download button instead');
+        }
+      };
+      
+      // Fallback if onload doesn't fire
+      setTimeout(() => {
+        if (iframe.contentWindow && iframe.contentWindow.document.readyState === 'complete') {
+          try {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          } catch (error) {
+            console.error('🚫 Fallback iframe print error:', error);
+          }
+        }
+      }, 1000);
     }
   };
 

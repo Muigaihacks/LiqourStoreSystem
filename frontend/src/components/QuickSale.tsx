@@ -4,6 +4,43 @@ import BarcodeScanner from './BarcodeScanner';
 import createReceiptGenerator from './ReceiptGenerator';
 import { apiService } from '../services/api';
 
+// Helper function to match Kenyan phone numbers in different formats
+const phoneNumbersMatch = (storedPhone: string, searchPhone: string): boolean => {
+  // Clean both numbers
+  const cleanStored = storedPhone.replace(/[\s\-()+]/g, '');
+  const cleanSearch = searchPhone.replace(/[\s\-()+]/g, '');
+  
+  // Generate variations for both numbers
+  const getVariations = (phone: string): string[] => {
+    const variations = new Set<string>();
+    
+    // Remove country code and leading zero
+    let basePhone = phone;
+    if (basePhone.startsWith('254')) {
+      basePhone = basePhone.substring(3);
+    }
+    if (basePhone.startsWith('0')) {
+      basePhone = basePhone.substring(1);
+    }
+    
+    // Add all possible formats
+    variations.add(basePhone);           // 712345678
+    variations.add(`0${basePhone}`);     // 0712345678
+    variations.add(`254${basePhone}`);   // 254712345678
+    variations.add(`+254${basePhone}`);  // +254712345678
+    
+    return Array.from(variations);
+  };
+  
+  const storedVariations = getVariations(cleanStored);
+  const searchVariations = getVariations(cleanSearch);
+  
+  // Check if any variation matches
+  return storedVariations.some(stored => 
+    searchVariations.some(search => stored === search)
+  );
+};
+
 interface ScannedProduct {
   id: number;
   name: string;
@@ -93,6 +130,49 @@ const QuickSale: React.FC = () => {
       return;
     }
 
+    // Validate loyalty points payment
+    if (paymentMethod === 'LOYALTY_POINTS') {
+      if (!customerContact.trim()) {
+        setMessage({ type: 'error', text: 'Customer phone number is required for loyalty points payment' });
+        return;
+      }
+      
+      // Check if customer exists and has enough points
+      try {
+        const customersResponse = await apiService.getCustomers();
+        const customers = customersResponse.data.results;
+        const customer = customers.find((c: any) => 
+          phoneNumbersMatch(c.phone_number, customerContact.trim())
+        );
+        
+        if (!customer) {
+          setMessage({ type: 'error', text: 'Customer not found. Please register customer first using Customer Lookup.' });
+          return;
+        }
+        
+        const totalAmount = calculateTotal();
+        const pointsRequired = Math.ceil(totalAmount); // 1 point = KSh 1 value
+        
+        if (customer.available_points < pointsRequired) {
+          setMessage({ 
+            type: 'error', 
+            text: `Insufficient points. Required: ${pointsRequired} points, Available: ${customer.available_points} points` 
+          });
+          return;
+        }
+        
+        setMessage({ 
+          type: 'success', 
+          text: `Using ${pointsRequired} loyalty points (KSh ${totalAmount}) from ${customer.name}` 
+        });
+        
+      } catch (error) {
+        console.error('Error checking customer points:', error);
+        setMessage({ type: 'error', text: 'Error checking customer points. Please try again.' });
+        return;
+      }
+    }
+
     setIsProcessingSale(true);
     try {
       // Create sale items data (match Django serializer format)
@@ -108,7 +188,7 @@ const QuickSale: React.FC = () => {
         payment_method: paymentMethod,
         customer_name: '',
         customer_phone: customerContact,
-        notes: ''
+        notes: paymentMethod === 'LOYALTY_POINTS' ? 'Payment made using loyalty points' : ''
       };
 
       const response = await apiService.createSale(saleData);
@@ -131,7 +211,35 @@ const QuickSale: React.FC = () => {
       console.log('🧾 Receipt data being stored:', saleData_receipt);
       setLastSale(saleData_receipt);
       
-      setMessage({ type: 'success', text: `Sale completed! Total: KSh ${calculateTotal().toLocaleString()}` });
+      // Handle loyalty points redemption
+      if (paymentMethod === 'LOYALTY_POINTS' && customerContact.trim()) {
+        try {
+          const totalAmount = calculateTotal();
+          const pointsToRedeem = Math.ceil(totalAmount); // 1 point = KSh 1 value
+          
+          // Create a negative points transaction to redeem points
+          await apiService.awardPoints({
+            phone_number: customerContact.trim(),
+            sale_amount: -totalAmount, // Negative amount for redemption
+            sale_id: response.data.id,
+            points_to_redeem: pointsToRedeem
+          });
+          
+          setMessage({ 
+            type: 'success', 
+            text: `Sale completed! ${pointsToRedeem} loyalty points redeemed (KSh ${totalAmount.toLocaleString()})` 
+          });
+        } catch (pointsError) {
+          console.error('Error redeeming points:', pointsError);
+          setMessage({ 
+            type: 'success', 
+            text: `Sale completed but failed to redeem points. Please manually adjust customer points.` 
+          });
+        }
+      } else {
+        setMessage({ type: 'success', text: `Sale completed! Total: KSh ${calculateTotal().toLocaleString()}` });
+      }
+      
       setScannedProducts([]); // Clear cart
       
     } catch (error: any) {
@@ -327,6 +435,7 @@ const QuickSale: React.FC = () => {
                 <option value="CASH">Cash</option>
                 <option value="CARD">Card</option>
                 <option value="BANK_TRANSFER">Bank Transfer</option>
+                <option value="LOYALTY_POINTS">Loyalty Points</option>
               </select>
             </div>
 

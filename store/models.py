@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 from decimal import Decimal
+from django.utils import timezone
 
 
 class Category(models.Model):
@@ -25,7 +26,8 @@ class Product(models.Model):
     barcode = models.CharField(max_length=50, unique=True, help_text="Unique barcode for this product")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     description = models.TextField(blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], help_text="Selling price")
+    buying_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], help_text="Cost price/buying price", default=0)
     size = models.CharField(max_length=50, blank=True, help_text="e.g., 750ml, 1L, etc.")
     age = models.CharField(max_length=50, blank=True, help_text="e.g., 12 years, 18 years, etc.")
     brand = models.CharField(max_length=100, blank=True)
@@ -44,6 +46,20 @@ class Product(models.Model):
         """Get current stock level for this product"""
         inventory = self.inventory_set.first()
         return inventory.quantity if inventory else 0
+    
+    @property
+    def profit_margin(self):
+        """Calculate profit margin percentage"""
+        if self.price and self.buying_price and self.price > 0:
+            return ((self.price - self.buying_price) / self.price) * 100
+        return 0
+    
+    @property
+    def profit_per_unit(self):
+        """Calculate profit per unit"""
+        if self.price and self.buying_price:
+            return self.price - self.buying_price
+        return 0
 
 
 class Inventory(models.Model):
@@ -98,12 +114,13 @@ class Sale(models.Model):
         ('MPESA', 'M-Pesa'),
         ('CARD', 'Card'),
         ('BANK', 'Bank Transfer'),
+        ('LOYALTY_POINTS', 'Loyalty Points'),
     ]
 
     sale_number = models.CharField(max_length=20, unique=True)
     employee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sales')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    payment_method = models.CharField(max_length=10, choices=PAYMENT_METHODS, default='CASH')
+    payment_method = models.CharField(max_length=15, choices=PAYMENT_METHODS, default='CASH')
     customer_name = models.CharField(max_length=100, blank=True)
     customer_phone = models.CharField(max_length=15, blank=True)
     notes = models.TextField(blank=True)
@@ -145,4 +162,76 @@ class SaleItem(models.Model):
     def save(self, *args, **kwargs):
         if not self.total_price:
             self.total_price = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
+
+
+class Customer(models.Model):
+    """Customer loyalty program members"""
+    phone_number = models.CharField(max_length=15, unique=True, help_text="Customer's phone number (primary identifier)")
+    name = models.CharField(max_length=100, help_text="Customer's full name")
+    email = models.EmailField(blank=True, help_text="Customer's email address (optional)")
+    total_points = models.PositiveIntegerField(default=0, help_text="Total loyalty points earned")
+    points_redeemed = models.PositiveIntegerField(default=0, help_text="Total points redeemed")
+    join_date = models.DateTimeField(default=timezone.now, help_text="Date customer joined loyalty program")
+    is_active = models.BooleanField(default=True, help_text="Is customer active in loyalty program")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-total_points', 'name']
+        verbose_name = "Loyalty Customer"
+        verbose_name_plural = "Loyalty Customers"
+
+    def __str__(self):
+        return f"{self.name} ({self.phone_number}) - {self.available_points} pts"
+
+    @property
+    def available_points(self):
+        """Calculate available points (total - redeemed)"""
+        return self.total_points - self.points_redeemed
+
+    @property
+    def total_spent(self):
+        """Calculate total amount spent by this customer"""
+        from django.db.models import Sum
+        total = Sale.objects.filter(customer_phone=self.phone_number).aggregate(
+            total=Sum('total_amount')
+        )['total']
+        return total or 0
+
+
+class PointTransaction(models.Model):
+    """Track all point transactions (earned/redeemed)"""
+    TRANSACTION_TYPES = [
+        ('EARNED', 'Points Earned'),
+        ('REDEEMED', 'Points Redeemed'),
+        ('BONUS', 'Bonus Points'),
+        ('ADJUSTMENT', 'Manual Adjustment'),
+    ]
+
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='point_transactions')
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
+    points = models.IntegerField(help_text="Positive for earned, negative for redeemed")
+    sale = models.ForeignKey(Sale, on_delete=models.SET_NULL, null=True, blank=True, help_text="Related sale (if applicable)")
+    notes = models.TextField(blank=True, help_text="Additional notes about this transaction")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Point Transaction"
+        verbose_name_plural = "Point Transactions"
+
+    def __str__(self):
+        action = "earned" if self.points > 0 else "redeemed"
+        return f"{self.customer.name} {action} {abs(self.points)} points"
+
+    def save(self, *args, **kwargs):
+        # Update customer's total points
+        if self.pk is None:  # Only for new transactions
+            if self.transaction_type in ['EARNED', 'BONUS', 'ADJUSTMENT'] and self.points > 0:
+                self.customer.total_points += self.points
+            elif self.transaction_type == 'REDEEMED' and self.points < 0:
+                self.customer.points_redeemed += abs(self.points)
+            self.customer.save()
         super().save(*args, **kwargs)
