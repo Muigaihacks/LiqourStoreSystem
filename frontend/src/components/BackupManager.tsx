@@ -41,9 +41,12 @@ const BackupManager: React.FC = () => {
   const [backupFormat, setBackupFormat] = useState<'json' | 'sql'>('json');
   const [includeMedia, setIncludeMedia] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [autoBackupStatus, setAutoBackupStatus] = useState<any>(null);
+  const [isControllingAutoBackup, setIsControllingAutoBackup] = useState(false);
 
   useEffect(() => {
     fetchBackupStatus();
+    fetchAutoBackupStatus();
   }, []);
 
   const fetchBackupStatus = async () => {
@@ -72,6 +75,40 @@ const BackupManager: React.FC = () => {
         last_backup: null
       });
       setMessage({ type: 'info', text: 'Backup system ready. Create your first backup below.' });
+    }
+  };
+
+  const fetchAutoBackupStatus = async () => {
+    try {
+      const response = await apiService.controlAutomatedBackups('status');
+      setAutoBackupStatus(response.data.status);
+    } catch (error) {
+      console.error('Failed to fetch auto backup status:', error);
+      setAutoBackupStatus({ running: false });
+    }
+  };
+
+  const toggleAutomatedBackups = async () => {
+    setIsControllingAutoBackup(true);
+    setMessage(null);
+    
+    try {
+      const action = autoBackupStatus?.running ? 'stop' : 'start';
+      const response = await apiService.controlAutomatedBackups(action, {
+        interval_hours: 6,
+        max_backups: 20,
+        backup_dir: 'backups'
+      });
+      
+      if (response.data.success) {
+        setMessage({ type: 'success', text: response.data.message });
+        await fetchAutoBackupStatus();
+      }
+    } catch (error) {
+      console.error('Failed to control automated backups:', error);
+      setMessage({ type: 'error', text: 'Failed to control automated backups' });
+    } finally {
+      setIsControllingAutoBackup(false);
     }
   };
 
@@ -179,7 +216,76 @@ const BackupManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Backup Creation */}
+      {/* Automated Backup System */}
+      <div className="border rounded-lg p-4 mb-6 bg-gradient-to-r from-green-50 to-blue-50">
+        <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+          <ServerIcon className="h-5 w-5 mr-2 text-green-600" />
+          Automated Backup System
+        </h3>
+        
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center mb-2">
+              <div className={`w-3 h-3 rounded-full mr-2 ${autoBackupStatus?.running ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className={`font-medium ${autoBackupStatus?.running ? 'text-green-700' : 'text-red-700'}`}>
+                {autoBackupStatus?.running ? 'ACTIVE' : 'INACTIVE'}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600">
+              {autoBackupStatus?.running 
+                ? `Automatic backups every ${autoBackupStatus.interval_hours} hours`
+                : 'No automated backups running'
+              }
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              💡 Recommended: Enable automated backups to protect against data loss
+            </p>
+          </div>
+          
+          <button
+            onClick={toggleAutomatedBackups}
+            disabled={isControllingAutoBackup}
+            className={`px-6 py-2 rounded-md font-medium flex items-center ${
+              autoBackupStatus?.running
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {isControllingAutoBackup ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                {autoBackupStatus?.running ? 'Stopping...' : 'Starting...'}
+              </>
+            ) : (
+              <>
+                {autoBackupStatus?.running ? '🛑 Stop Auto Backups' : '🚀 Start Auto Backups'}
+              </>
+            )}
+          </button>
+        </div>
+        
+        {autoBackupStatus?.running && (
+          <div className="mt-4 p-3 bg-white rounded border">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">Current Settings:</h4>
+            <div className="grid grid-cols-3 gap-4 text-xs">
+              <div>
+                <span className="text-gray-600">Interval:</span>
+                <div className="font-medium">{autoBackupStatus.interval_hours}h</div>
+              </div>
+              <div>
+                <span className="text-gray-600">Max Backups:</span>
+                <div className="font-medium">{autoBackupStatus.max_backups}</div>
+              </div>
+              <div>
+                <span className="text-gray-600">Directory:</span>
+                <div className="font-medium">{autoBackupStatus.backup_dir}</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Manual Backup Creation */}
       <div className="border rounded-lg p-4 mb-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Backup</h3>
         
@@ -289,10 +395,12 @@ const BackupManager: React.FC = () => {
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <h4 className="text-sm font-medium text-blue-800 mb-2">💡 Backup Best Practices</h4>
         <ul className="text-xs text-blue-700 space-y-1">
-          <li>• Create backups regularly, especially before major changes</li>
+          <li>• <strong>Enable automated backups</strong> - Never worry about forgetting to backup</li>
+          <li>• Automated backups run every 6 hours, even when employees forget</li>
+          <li>• Manual backups are great for before major changes or end-of-day</li>
           <li>• Store backups in multiple locations (local, cloud, external drive)</li>
           <li>• Test backup restoration periodically to ensure data integrity</li>
-          <li>• Use JSON format for maximum compatibility across systems</li>
+          <li>• JSON format provides maximum compatibility across systems</li>
         </ul>
       </div>
     </div>

@@ -21,5 +21,6 @@ urlpatterns = [
     path('api/award-points/', views.award_points, name='award_points'),
     path('api/backup/create/', views.create_backup, name='create_backup'),
     path('api/backup/status/', views.backup_status, name='backup_status'),
+    path('api/backup/auto/', views.control_automated_backups, name='control_automated_backups'),
     path('', home_redirect, name='home'),  # Root redirect to React frontend
 ]

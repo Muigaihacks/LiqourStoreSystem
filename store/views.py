@@ -569,3 +569,52 @@ def backup_status(request):
         'database_stats': stats,
         'last_backup': backups[0] if backups else None
     })
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def control_automated_backups(request):
+    """Control automated backup system"""
+    from .backup_scheduler import (
+        start_automated_backups, 
+        stop_automated_backups, 
+        get_backup_scheduler_status
+    )
+    
+    action = request.data.get('action')
+    
+    if action not in ['start', 'stop', 'status']:
+        return Response({'error': 'Invalid action. Use start, stop, or status'}, 
+                       status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        if action == 'start':
+            interval_hours = request.data.get('interval_hours', 6)
+            max_backups = request.data.get('max_backups', 20)
+            backup_dir = request.data.get('backup_dir', 'backups')
+            
+            scheduler = start_automated_backups(interval_hours, max_backups, backup_dir)
+            
+            return Response({
+                'success': True,
+                'message': f'Automated backups started (every {interval_hours} hours)',
+                'status': scheduler.get_status()
+            })
+            
+        elif action == 'stop':
+            stop_automated_backups()
+            return Response({
+                'success': True,
+                'message': 'Automated backups stopped'
+            })
+            
+        elif action == 'status':
+            backup_status = get_backup_scheduler_status()
+            return Response({
+                'success': True,
+                'status': backup_status
+            })
+            
+    except Exception as e:
+        return Response({'error': f'Failed to {action} automated backups: {str(e)}'}, 
+                       status=status.HTTP_500_INTERNAL_SERVER_ERROR)

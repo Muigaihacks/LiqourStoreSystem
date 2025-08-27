@@ -120,6 +120,8 @@ export const apiService = {
   createBackup: (format: 'json' | 'sql' = 'json', includeMedia: boolean = false) => 
     api.post('/backup/create/', { format, include_media: includeMedia }, { responseType: 'blob' }),
   getBackupStatus: () => api.get('/backup/status/'),
+  controlAutomatedBackups: (action: 'start' | 'stop' | 'status', options?: any) =>
+    api.post('/backup/auto/', { action, ...options }),
 };
 
 export default api;
