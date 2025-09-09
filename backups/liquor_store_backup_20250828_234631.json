@@ -1,0 +1,676 @@
+{
+  "metadata": {
+    "created_at": "2025-08-28T23:46:31.304135",
+    "django_version": "5.2.5",
+    "backup_format": "json",
+    "models_included": [
+      "Category",
+      "Product",
+      "Inventory",
+      "StockMovement",
+      "Sale",
+      "Customer",
+      "PointTransaction"
+    ]
+  },
+  "data": {
+    "categories": [
+      {
+        "model": "store.category",
+        "pk": 6,
+        "fields": {
+          "name": "Beer",
+          "description": "",
+          "created_at": "2025-08-25T12:12:45.177Z",
+          "updated_at": "2025-08-25T12:12:45.177Z"
+        }
+      },
+      {
+        "model": "store.category",
+        "pk": 8,
+        "fields": {
+          "name": "Cigarettes",
+          "description": "",
+          "created_at": "2025-08-25T12:13:03.605Z",
+          "updated_at": "2025-08-25T12:13:03.605Z"
+        }
+      },
+      {
+        "model": "store.category",
+        "pk": 2,
+        "fields": {
+          "name": "Gin",
+          "description": "",
+          "created_at": "2025-08-25T12:11:45.437Z",
+          "updated_at": "2025-08-25T12:11:45.437Z"
+        }
+      },
+      {
+        "model": "store.category",
+        "pk": 4,
+        "fields": {
+          "name": "Liqueur",
+          "description": "",
+          "created_at": "2025-08-25T12:12:24.908Z",
+          "updated_at": "2025-08-25T12:12:24.908Z"
+        }
+      },
+      {
+        "model": "store.category",
+        "pk": 10,
+        "fields": {
+          "name": "Local(Spirit)",
+          "description": "",
+          "created_at": "2025-08-25T12:13:50.804Z",
+          "updated_at": "2025-08-25T12:13:50.804Z"
+        }
+      },
+      {
+        "model": "store.category",
+        "pk": 9,
+        "fields": {
+          "name": "Nicotine Pouch",
+          "description": "",
+          "created_at": "2025-08-25T12:13:13.235Z",
+          "updated_at": "2025-08-25T12:13:13.235Z"
+        }
+      },
+      {
+        "model": "store.category",
+        "pk": 5,
+        "fields": {
+          "name": "Rum",
+          "description": "",
+          "created_at": "2025-08-25T12:12:37.364Z",
+          "updated_at": "2025-08-25T12:12:37.364Z"
+        }
+      },
+      {
+        "model": "store.category",
+        "pk": 3,
+        "fields": {
+          "name": "Vodka",
+          "description": "",
+          "created_at": "2025-08-25T12:11:53.135Z",
+          "updated_at": "2025-08-25T12:11:53.135Z"
+        }
+      },
+      {
+        "model": "store.category",
+        "pk": 1,
+        "fields": {
+          "name": "Whiskey",
+          "description": "",
+          "created_at": "2025-08-25T12:11:37.220Z",
+          "updated_at": "2025-08-25T12:11:37.220Z"
+        }
+      },
+      {
+        "model": "store.category",
+        "pk": 7,
+        "fields": {
+          "name": "Wine",
+          "description": "",
+          "created_at": "2025-08-25T12:12:51.577Z",
+          "updated_at": "2025-08-25T12:12:51.577Z"
+        }
+      }
+    ],
+    "products": [
+      {
+        "model": "store.product",
+        "pk": 6,
+        "fields": {
+          "name": "Balozi",
+          "barcode": "67890123",
+          "category": 6,
+          "description": "",
+          "price": "300.00",
+          "buying_price": "180.00",
+          "size": "500ml",
+          "age": "",
+          "brand": "Balozi",
+          "is_active": true,
+          "created_at": "2025-08-25T12:28:09.231Z",
+          "updated_at": "2025-08-27T10:33:16.183Z"
+        }
+      },
+      {
+        "model": "store.product",
+        "pk": 8,
+        "fields": {
+          "name": "Embassy",
+          "barcode": "89012345",
+          "category": 8,
+          "description": "",
+          "price": "500.00",
+          "buying_price": "360.00",
+          "size": "",
+          "age": "",
+          "brand": "Dunhill",
+          "is_active": true,
+          "created_at": "2025-08-25T12:31:15.593Z",
+          "updated_at": "2025-08-27T10:33:34.652Z"
+        }
+      },
+      {
+        "model": "store.product",
+        "pk": 2,
+        "fields": {
+          "name": "Bombay Sapphire London Dry Gin",
+          "barcode": "23456789",
+          "category": 2,
+          "description": "",
+          "price": "3799.00",
+          "buying_price": "2900.00",
+          "size": "1L",
+          "age": "",
+          "brand": "Bombay",
+          "is_active": true,
+          "created_at": "2025-08-25T12:21:02.885Z",
+          "updated_at": "2025-08-27T10:33:55.946Z"
+        }
+      },
+      {
+        "model": "store.product",
+        "pk": 10,
+        "fields": {
+          "name": "Tanqueray No. 10",
+          "barcode": "01234567",
+          "category": 2,
+          "description": "",
+          "price": "6400.00",
+          "buying_price": "5200.00",
+          "size": "1L",
+          "age": "",
+          "brand": "Tanqueray",
+          "is_active": true,
+          "created_at": "2025-08-27T10:28:15.480Z",
+          "updated_at": "2025-08-27T10:28:15.480Z"
+        }
+      },
+      {
+        "model": "store.product",
+        "pk": 4,
+        "fields": {
+          "name": "Jagermeister",
+          "barcode": "45678901",
+          "category": 4,
+          "description": "",
+          "price": "4500.00",
+          "buying_price": "3800.00",
+          "size": "1L",
+          "age": "",
+          "brand": "jagermeister",
+          "is_active": true,
+          "created_at": "2025-08-25T12:24:59.255Z",
+          "updated_at": "2025-08-27T10:34:54.423Z"
+        }
+      },
+      {
+        "model": "store.product",
+        "pk": 9,
+        "fields": {
+          "name": "Velo 8point",
+          "barcode": "90123456",
+          "category": 9,
+          "description": "",
+          "price": "1500.00",
+          "buying_price": "1200.00",
+          "size": "",
+          "age": "",
+          "brand": "Velo",
+          "is_active": true,
+          "created_at": "2025-08-25T12:32:41.148Z",
+          "updated_at": "2025-08-27T10:35:04.307Z"
+        }
+      },
+      {
+        "model": "store.product",
+        "pk": 5,
+        "fields": {
+          "name": "Bacardi Oakheart/Spiced",
+          "barcode": "56789012",
+          "category": 5,
+          "description": "",
+          "price": "2400.00",
+          "buying_price": "1900.00",
+          "size": "750ml",
+          "age": "",
+          "brand": "Bacardi",
+          "is_active": true,
+          "created_at": "2025-08-25T12:26:10.278Z",
+          "updated_at": "2025-08-27T10:35:13.141Z"
+        }
+      },
+      {
+        "model": "store.product",
+        "pk": 3,
+        "fields": {
+          "name": "Absolut Vodka",
+          "barcode": "34567890",
+          "category": 3,
+          "description": "",
+          "price": "2999.00",
+          "buying_price": "2200.00",
+          "size": "750ml",
+          "age": "",
+          "brand": "Absolut",
+          "is_active": true,
+          "created_at": "2025-08-25T12:22:44.361Z",
+          "updated_at": "2025-08-27T10:35:24.877Z"
+        }
+      },
+      {
+        "model": "store.product",
+        "pk": 1,
+        "fields": {
+          "name": "Jack Daniel's Old No.7 Tennessee",
+          "barcode": "12345678",
+          "category": 1,
+          "description": "",
+          "price": "3999.00",
+          "buying_price": "3200.00",
+          "size": "750ml",
+          "age": "",
+          "brand": "Jack Daniel's",
+          "is_active": true,
+          "created_at": "2025-08-25T12:19:17.826Z",
+          "updated_at": "2025-08-27T10:35:36.726Z"
+        }
+      },
+      {
+        "model": "store.product",
+        "pk": 7,
+        "fields": {
+          "name": "Mucho Mas",
+          "barcode": "78901234",
+          "category": 7,
+          "description": "",
+          "price": "3200.00",
+          "buying_price": "2700.00",
+          "size": "750ml",
+          "age": "",
+          "brand": "Mucho Mas",
+          "is_active": true,
+          "created_at": "2025-08-25T12:30:28.261Z",
+          "updated_at": "2025-08-27T10:35:47.936Z"
+        }
+      }
+    ],
+    "inventory": [
+      {
+        "model": "store.inventory",
+        "pk": 1,
+        "fields": {
+          "product": 1,
+          "quantity": 9,
+          "minimum_stock": 5,
+          "last_updated": "2025-08-27T09:29:07.230Z"
+        }
+      },
+      {
+        "model": "store.inventory",
+        "pk": 2,
+        "fields": {
+          "product": 6,
+          "quantity": 48,
+          "minimum_stock": 12,
+          "last_updated": "2025-08-26T10:20:08.911Z"
+        }
+      },
+      {
+        "model": "store.inventory",
+        "pk": 3,
+        "fields": {
+          "product": 8,
+          "quantity": 28,
+          "minimum_stock": 5,
+          "last_updated": "2025-08-27T09:16:35.727Z"
+        }
+      },
+      {
+        "model": "store.inventory",
+        "pk": 4,
+        "fields": {
+          "product": 2,
+          "quantity": 6,
+          "minimum_stock": 5,
+          "last_updated": "2025-08-27T08:56:18.549Z"
+        }
+      },
+      {
+        "model": "store.inventory",
+        "pk": 5,
+        "fields": {
+          "product": 4,
+          "quantity": 14,
+          "minimum_stock": 5,
+          "last_updated": "2025-08-27T09:29:07.233Z"
+        }
+      },
+      {
+        "model": "store.inventory",
+        "pk": 6,
+        "fields": {
+          "product": 9,
+          "quantity": 14,
+          "minimum_stock": 5,
+          "last_updated": "2025-08-27T08:56:18.552Z"
+        }
+      },
+      {
+        "model": "store.inventory",
+        "pk": 7,
+        "fields": {
+          "product": 5,
+          "quantity": 20,
+          "minimum_stock": 5,
+          "last_updated": "2025-08-26T12:27:03.618Z"
+        }
+      },
+      {
+        "model": "store.inventory",
+        "pk": 8,
+        "fields": {
+          "product": 3,
+          "quantity": 20,
+          "minimum_stock": 5,
+          "last_updated": "2025-08-27T09:16:35.724Z"
+        }
+      },
+      {
+        "model": "store.inventory",
+        "pk": 9,
+        "fields": {
+          "product": 7,
+          "quantity": 16,
+          "minimum_stock": 5,
+          "last_updated": "2025-08-26T10:28:03.369Z"
+        }
+      },
+      {
+        "model": "store.inventory",
+        "pk": 10,
+        "fields": {
+          "product": 10,
+          "quantity": 15,
+          "minimum_stock": 5,
+          "last_updated": "2025-08-27T10:30:29.359Z"
+        }
+      }
+    ],
+    "stock_movements": [
+      {
+        "model": "store.stockmovement",
+        "pk": 4,
+        "fields": {
+          "product": 5,
+          "movement_type": "IN",
+          "quantity": 15,
+          "previous_stock": 5,
+          "new_stock": 20,
+          "notes": "",
+          "created_by": 1,
+          "created_at": "2025-08-26T12:27:03.619Z"
+        }
+      },
+      {
+        "model": "store.stockmovement",
+        "pk": 3,
+        "fields": {
+          "product": 6,
+          "movement_type": "OUT",
+          "quantity": -3,
+          "previous_stock": 58,
+          "new_stock": 55,
+          "notes": "Sale #SALE-998EF544",
+          "created_by": 2,
+          "created_at": "2025-08-26T08:59:21.641Z"
+        }
+      },
+      {
+        "model": "store.stockmovement",
+        "pk": 2,
+        "fields": {
+          "product": 6,
+          "movement_type": "OUT",
+          "quantity": -1,
+          "previous_stock": 59,
+          "new_stock": 58,
+          "notes": "Sale #SALE-1A941FD3",
+          "created_by": 2,
+          "created_at": "2025-08-26T08:57:49.859Z"
+        }
+      },
+      {
+        "model": "store.stockmovement",
+        "pk": 1,
+        "fields": {
+          "product": 6,
+          "movement_type": "OUT",
+          "quantity": -1,
+          "previous_stock": 60,
+          "new_stock": 59,
+          "notes": "Sale #SALE-7F348EF3",
+          "created_by": 2,
+          "created_at": "2025-08-26T08:57:41.514Z"
+        }
+      }
+    ],
+    "sales": [
+      {
+        "model": "store.sale",
+        "pk": 10,
+        "fields": {
+          "sale_number": "SALE-8799755F",
+          "employee": 2,
+          "total_amount": "8499.00",
+          "payment_method": "CARD",
+          "customer_name": "",
+          "customer_phone": "0718004282",
+          "notes": "",
+          "created_at": "2025-08-27T09:29:07.225Z",
+          "updated_at": "2025-08-27T09:29:07.234Z"
+        }
+      },
+      {
+        "model": "store.sale",
+        "pk": 9,
+        "fields": {
+          "sale_number": "SALE-680344A4",
+          "employee": 2,
+          "total_amount": "6998.00",
+          "payment_method": "BANK_TRANSFER",
+          "customer_name": "",
+          "customer_phone": "0718004282",
+          "notes": "",
+          "created_at": "2025-08-27T09:16:35.720Z",
+          "updated_at": "2025-08-27T09:16:35.728Z"
+        }
+      },
+      {
+        "model": "store.sale",
+        "pk": 8,
+        "fields": {
+          "sale_number": "SALE-491C20BD",
+          "employee": 2,
+          "total_amount": "10598.00",
+          "payment_method": "CARD",
+          "customer_name": "",
+          "customer_phone": "0718004282",
+          "notes": "",
+          "created_at": "2025-08-27T08:56:18.545Z",
+          "updated_at": "2025-08-27T08:56:18.552Z"
+        }
+      },
+      {
+        "model": "store.sale",
+        "pk": 7,
+        "fields": {
+          "sale_number": "SALE-D2AD622F",
+          "employee": 2,
+          "total_amount": "6400.00",
+          "payment_method": "CASH",
+          "customer_name": "",
+          "customer_phone": "0718004282",
+          "notes": "",
+          "created_at": "2025-08-26T10:28:03.363Z",
+          "updated_at": "2025-08-26T10:28:03.370Z"
+        }
+      },
+      {
+        "model": "store.sale",
+        "pk": 6,
+        "fields": {
+          "sale_number": "SALE-464EAE7E",
+          "employee": 2,
+          "total_amount": "6600.00",
+          "payment_method": "CARD",
+          "customer_name": "",
+          "customer_phone": "0718004282",
+          "notes": "",
+          "created_at": "2025-08-26T10:20:08.899Z",
+          "updated_at": "2025-08-26T10:20:08.912Z"
+        }
+      },
+      {
+        "model": "store.sale",
+        "pk": 5,
+        "fields": {
+          "sale_number": "SALE-0AF3620E",
+          "employee": 2,
+          "total_amount": "11997.00",
+          "payment_method": "CASH",
+          "customer_name": "",
+          "customer_phone": "",
+          "notes": "",
+          "created_at": "2025-08-26T09:02:30.885Z",
+          "updated_at": "2025-08-26T09:02:30.907Z"
+        }
+      },
+      {
+        "model": "store.sale",
+        "pk": 4,
+        "fields": {
+          "sale_number": "SALE-7CE1382D",
+          "employee": 2,
+          "total_amount": "300.00",
+          "payment_method": "CASH",
+          "customer_name": "",
+          "customer_phone": "",
+          "notes": "",
+          "created_at": "2025-08-26T09:01:28.648Z",
+          "updated_at": "2025-08-26T09:01:28.653Z"
+        }
+      },
+      {
+        "model": "store.sale",
+        "pk": 3,
+        "fields": {
+          "sale_number": "SALE-998EF544",
+          "employee": 2,
+          "total_amount": "900.00",
+          "payment_method": "CASH",
+          "customer_name": "",
+          "customer_phone": "",
+          "notes": "",
+          "created_at": "2025-08-26T08:59:21.632Z",
+          "updated_at": "2025-08-26T08:59:21.642Z"
+        }
+      },
+      {
+        "model": "store.sale",
+        "pk": 2,
+        "fields": {
+          "sale_number": "SALE-1A941FD3",
+          "employee": 2,
+          "total_amount": "300.00",
+          "payment_method": "CASH",
+          "customer_name": "",
+          "customer_phone": "",
+          "notes": "",
+          "created_at": "2025-08-26T08:57:49.854Z",
+          "updated_at": "2025-08-26T08:57:49.860Z"
+        }
+      },
+      {
+        "model": "store.sale",
+        "pk": 1,
+        "fields": {
+          "sale_number": "SALE-7F348EF3",
+          "employee": 2,
+          "total_amount": "300.00",
+          "payment_method": "CASH",
+          "customer_name": "",
+          "customer_phone": "",
+          "notes": "",
+          "created_at": "2025-08-26T08:57:41.509Z",
+          "updated_at": "2025-08-26T08:57:41.515Z"
+        }
+      }
+    ],
+    "customers": [
+      {
+        "model": "store.customer",
+        "pk": 1,
+        "fields": {
+          "phone_number": "0712345678",
+          "name": "Test Customer",
+          "email": "test@example.com",
+          "total_points": 5,
+          "points_redeemed": 0,
+          "join_date": "2025-08-27T11:03:04.871Z",
+          "is_active": true,
+          "created_at": "2025-08-27T11:03:04.871Z",
+          "updated_at": "2025-08-27T11:03:13.362Z"
+        }
+      },
+      {
+        "model": "store.customer",
+        "pk": 2,
+        "fields": {
+          "phone_number": "0112345678",
+          "name": "Test Customer 4",
+          "email": "test4@example.com",
+          "total_points": 0,
+          "points_redeemed": 0,
+          "join_date": "2025-08-27T11:33:50.641Z",
+          "is_active": true,
+          "created_at": "2025-08-27T11:33:50.641Z",
+          "updated_at": "2025-08-27T11:33:50.641Z"
+        }
+      },
+      {
+        "model": "store.customer",
+        "pk": 3,
+        "fields": {
+          "phone_number": "0718004282",
+          "name": "Tyrese muigai",
+          "email": "",
+          "total_points": 0,
+          "points_redeemed": 0,
+          "join_date": "2025-08-27T11:37:04.363Z",
+          "is_active": true,
+          "created_at": "2025-08-27T11:37:04.363Z",
+          "updated_at": "2025-08-27T11:37:04.363Z"
+        }
+      }
+    ],
+    "point_transactions": [
+      {
+        "model": "store.pointtransaction",
+        "pk": 1,
+        "fields": {
+          "customer": 1,
+          "transaction_type": "EARNED",
+          "points": 5,
+          "sale": 1,
+          "notes": "Points earned from sale (KSh 500.0)",
+          "created_by": null,
+          "created_at": "2025-08-27T11:03:13.363Z"
+        }
+      }
+    ]
+  }
+}
