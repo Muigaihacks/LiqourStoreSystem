@@ -402,6 +402,22 @@ class CustomerViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class PointTransactionViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for PointTransaction - read-only to view transaction history"""
+    queryset = PointTransaction.objects.all()
+    serializer_class = PointTransactionSerializer
+    permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
+    
+    def get_queryset(self):
+        queryset = PointTransaction.objects.all()
+        customer_id = self.request.query_params.get('customer_id', None)
+        
+        if customer_id:
+            queryset = queryset.filter(customer_id=customer_id)
+        
+        return queryset.order_by('-created_at')
+
+
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def award_points(request):

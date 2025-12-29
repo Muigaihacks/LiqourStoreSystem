@@ -115,6 +115,11 @@ export const apiService = {
   registerCustomer: (customerData: any) => api.post('/customers/register/', customerData),
   getPrizeEligibleCustomers: (threshold: number = 100) => api.get(`/customers/prize_eligible/?threshold=${threshold}`),
   awardPoints: (pointsData: any) => api.post('/award-points/', pointsData),
+  
+  // Point Transactions
+  getPointTransactions: () => api.get('/point-transactions/'),
+  getPointTransaction: (id: number) => api.get(`/point-transactions/${id}/`),
+  getCustomerPointTransactions: (customerId: number) => api.get(`/point-transactions/?customer_id=${customerId}`),
 
   // Backup
   createBackup: (format: 'json' | 'sql' = 'json', includeMedia: boolean = false) => 

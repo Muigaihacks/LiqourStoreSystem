@@ -14,6 +14,7 @@ router.register(r'inventory', views.InventoryViewSet)
 router.register(r'stock-movements', views.StockMovementViewSet)
 router.register(r'sales', views.SaleViewSet)
 router.register(r'customers', views.CustomerViewSet)
+router.register(r'point-transactions', views.PointTransactionViewSet)
 
 urlpatterns = [
     path('api/', include(router.urls)),
