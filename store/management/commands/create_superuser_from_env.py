@@ -26,14 +26,6 @@ class Command(BaseCommand):
             )
             return
 
-        if User.objects.filter(username=admin_username).exists():
-            self.stdout.write(
-                self.style.WARNING(
-                    f'User "{admin_username}" already exists. Skipping.'
-                )
-            )
-            return
-
         User.objects.create_superuser(
             username=admin_username,
             email=admin_email,
