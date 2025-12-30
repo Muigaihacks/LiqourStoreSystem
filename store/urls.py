@@ -1,13 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from django.shortcuts import redirect
+from django.views.generic import TemplateView
 from . import views
-
-def home_redirect(request):
-    """Redirect to React frontend"""
-    # In production, React is served by Django, so just redirect to root
-    # The React app will be served by Django's template view
-    return redirect('/')
 
 router = DefaultRouter()
 router.register(r'categories', views.CategoryViewSet)
