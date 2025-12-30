@@ -1,0 +1,13 @@
+{
+  "name": "liquor-store",
+  "version": "1.0.0",
+  "description": "Liquor Store Management System",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build"
+  },
+  "engines": {
+    "node": "18.x",
+    "npm": "9.x"
+  }
+}
+
