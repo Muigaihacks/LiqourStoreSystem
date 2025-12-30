@@ -5,7 +5,9 @@ from . import views
 
 def home_redirect(request):
     """Redirect to React frontend"""
-    return redirect('http://localhost:3000')
+    # In production, React is served by Django, so just redirect to root
+    # The React app will be served by Django's template view
+    return redirect('/')
 
 router = DefaultRouter()
 router.register(r'categories', views.CategoryViewSet)
@@ -23,5 +25,6 @@ urlpatterns = [
     path('api/backup/create/', views.create_backup, name='create_backup'),
     path('api/backup/status/', views.backup_status, name='backup_status'),
     path('api/backup/auto/', views.control_automated_backups, name='control_automated_backups'),
-    path('', home_redirect, name='home'),  # Root redirect to React frontend
+    # Serve React app for all non-API routes (React Router will handle client-side routing)
+    path('', TemplateView.as_view(template_name='index.html'), name='home'),
 ]
