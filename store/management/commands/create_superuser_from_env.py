@@ -14,14 +14,14 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
-        admin_email = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
-        admin_password = os.environ.get('ADMIN_PASSWORD')
+        admin_email = os.environ.get('ADMIN_EMAIL', 'admin@liquorstore.com')
+        admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
-        if not admin_password:
+        # Check if user already exists
+        if User.objects.filter(username=admin_username).exists():
             self.stdout.write(
                 self.style.WARNING(
-                    'ADMIN_PASSWORD environment variable not set. '
-                    'Skipping superuser creation.'
+                    f'User "{admin_username}" already exists. Skipping.'
                 )
             )
             return
