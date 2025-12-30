@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: liquor-store-backend
+    env: python
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      cd frontend && npm install && npm run build && cd ..
+      python manage.py collectstatic --noinput
+    startCommand: |
+      python manage.py migrate --noinput || true
+      gunicorn liquor_store_backend.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: liquor_store_backend.settings_production
+      - key: PYTHON_VERSION
+        value: 3.13.0
+    healthCheckPath: /admin/
+
+databases:
+  - name: liquor-store-db
+    plan: free
+
