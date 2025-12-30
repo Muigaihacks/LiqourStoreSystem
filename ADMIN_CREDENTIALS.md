@@ -11,9 +11,9 @@ After deployment, the admin panel will automatically create a default admin user
 ## Important Notes
 
 - These credentials are created automatically on first deployment
-- If you set environment variables (`ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`), those will be used instead
 - The default admin is only created if no users exist in the database
 - You can change the password after logging in through the Django admin panel
+- **Note:** Environment variables (`ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`) are no longer needed and can be removed from Render settings
 
 ## Accessing the Admin Panel
 
