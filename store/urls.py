@@ -1,9 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from django.views.generic import TemplateView
-from django.conf import settings
-from django.conf.urls.static import static
+from django.shortcuts import redirect
 from . import views
+
+def home_redirect(request):
+    """Redirect to React frontend"""
+    return redirect('http://localhost:3000')
 
 router = DefaultRouter()
 router.register(r'categories', views.CategoryViewSet)
@@ -21,6 +23,5 @@ urlpatterns = [
     path('api/backup/create/', views.create_backup, name='create_backup'),
     path('api/backup/status/', views.backup_status, name='backup_status'),
     path('api/backup/auto/', views.control_automated_backups, name='control_automated_backups'),
-    # Serve React app for all non-API routes (React Router will handle routing)
-    path('', TemplateView.as_view(template_name='index.html'), name='home'),
+    path('', home_redirect, name='home'),  # Root redirect to React frontend
 ]
