@@ -154,3 +154,25 @@ CACHES = {
 
 # Time Zone
 TIME_ZONE = 'Africa/Nairobi'  # Kenya timezone
+
+# REST Framework Configuration Override
+# Allow unauthenticated access to specific endpoints (like barcode_lookup)
+# Individual viewsets/actions can override this with their own permission_classes
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+}
+
+# CSRF Configuration for API endpoints
+# Trust the Render domain for CSRF
+CSRF_TRUSTED_ORIGINS = [
+    'https://liqourstoresystem.onrender.com',
+    'https://*.onrender.com',
+]

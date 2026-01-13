@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.authentication import SessionAuthentication
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum, Q, Count, F
 from django.utils import timezone
@@ -57,7 +58,12 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee i
         
         return queryset
     
-    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
+    @action(
+        detail=False, 
+        methods=['post'], 
+        permission_classes=[permissions.AllowAny],
+        authentication_classes=[]  # No authentication required
+    )
     def barcode_lookup(self, request):
         """Look up product by barcode"""
         # Get barcode from request and trim whitespace
