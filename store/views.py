@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes, authentication_classes
 from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication
 from django.shortcuts import get_object_or_404
@@ -27,12 +27,14 @@ from .serializers import (
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee interface
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    authentication_classes = []  # No authentication required
     permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee interface
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
+    authentication_classes = []  # No authentication required
     permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
     
     def get_queryset(self):
@@ -177,6 +179,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee i
 class InventoryViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee interface
     queryset = Inventory.objects.all()
     serializer_class = InventorySerializer
+    authentication_classes = []  # No authentication required
     permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
     
     def get_queryset(self):
@@ -241,6 +244,7 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @api_view(['POST'])
+@authentication_classes([])  # No authentication required
 @permission_classes([permissions.AllowAny])
 def create_simple_sale(request):
     """Simple sale creation for debugging"""
@@ -322,6 +326,7 @@ def create_simple_sale(request):
 class SaleViewSet(viewsets.ModelViewSet):  # Allow create operations for sales
     queryset = Sale.objects.all()
     serializer_class = SaleSerializer
+    authentication_classes = []  # No authentication required
     permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
     
     def get_serializer_class(self):
@@ -399,6 +404,7 @@ class SaleViewSet(viewsets.ModelViewSet):  # Allow create operations for sales
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
+    authentication_classes = []  # No authentication required
     permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
     
     def get_queryset(self):
@@ -442,6 +448,7 @@ class PointTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for PointTransaction - read-only to view transaction history"""
     queryset = PointTransaction.objects.all()
     serializer_class = PointTransactionSerializer
+    authentication_classes = []  # No authentication required
     permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
     
     def get_queryset(self):
@@ -455,6 +462,7 @@ class PointTransactionViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @api_view(['POST'])
+@authentication_classes([])  # No authentication required
 @permission_classes([permissions.AllowAny])
 def award_points(request):
     """Award or redeem points for a customer"""
@@ -535,6 +543,7 @@ def award_points(request):
 
 
 @api_view(['POST'])
+@authentication_classes([])  # No authentication required
 @permission_classes([permissions.AllowAny])
 def create_backup(request):
     """Create a data backup"""
@@ -578,6 +587,7 @@ def create_backup(request):
 
 
 @api_view(['GET'])
+@authentication_classes([])  # No authentication required
 @permission_classes([permissions.AllowAny])
 def backup_status(request):
     """Get backup system status and information"""
@@ -624,6 +634,7 @@ def backup_status(request):
 
 
 @api_view(['POST'])
+@authentication_classes([])  # No authentication required
 @permission_classes([permissions.AllowAny])
 def control_automated_backups(request):
     """Control automated backup system"""
