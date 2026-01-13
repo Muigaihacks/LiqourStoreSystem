@@ -60,19 +60,35 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee i
     @action(detail=False, methods=['post'])
     def barcode_lookup(self, request):
         """Look up product by barcode"""
-        serializer = BarcodeLookupSerializer(data=request.data)
-        if serializer.is_valid():
-            barcode = serializer.validated_data['barcode']
+        # Get barcode from request and trim whitespace
+        barcode = request.data.get('barcode', '').strip()
+        
+        if not barcode:
+            return Response(
+                {'error': 'Barcode is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Try exact match first
+            product = Product.objects.get(barcode=barcode, is_active=True)
+        except Product.DoesNotExist:
+            # Try case-insensitive match
             try:
-                product = Product.objects.get(barcode=barcode, is_active=True)
-                product_serializer = ProductSerializer(product)
-                return Response(product_serializer.data)
+                product = Product.objects.get(barcode__iexact=barcode, is_active=True)
             except Product.DoesNotExist:
-                return Response(
-                    {'error': 'Product not found or inactive'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                # Try with any whitespace removed
+                barcode_clean = barcode.replace(' ', '').replace('-', '')
+                try:
+                    product = Product.objects.get(barcode__iexact=barcode_clean, is_active=True)
+                except Product.DoesNotExist:
+                    return Response(
+                        {'error': f'Product with barcode "{barcode}" not found or inactive'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+        
+        product_serializer = ProductSerializer(product)
+        return Response(product_serializer.data)
     
     @action(detail=False, methods=['get'])
     def low_stock(self, request):
@@ -158,13 +174,27 @@ class InventoryViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee
     permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
     
     def get_queryset(self):
-        queryset = Inventory.objects.all()
+        # Auto-create inventory records for products that don't have one
+        products_without_inventory = Product.objects.filter(inventory__isnull=True, is_active=True)
+        for product in products_without_inventory:
+            Inventory.objects.get_or_create(
+                product=product,
+                defaults={'quantity': 0, 'minimum_stock': 5}
+            )
+        
+        queryset = Inventory.objects.select_related('product').filter(product__is_active=True)
         low_stock = self.request.query_params.get('low_stock', None)
         
         if low_stock == 'true':
             queryset = queryset.filter(quantity__lte=F('minimum_stock'))
         
-        return queryset
+        return queryset.order_by('product__name')
+    
+    def list(self, request, *args, **kwargs):
+        # Override list to return non-paginated response
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
     @action(detail=False, methods=['post'])
     def stock_in(self, request):

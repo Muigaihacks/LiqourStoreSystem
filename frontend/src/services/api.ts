@@ -1,8 +1,21 @@
 import axios from 'axios';
 
 // Base API configuration
-// Use relative URL in production (same domain), localhost in development
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+// Use environment variable for production, localhost for development
+const getApiBaseUrl = () => {
+  // Check if we're in production (deployed on Render)
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  // Production URL (Render)
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'https://liqourstoresystem.onrender.com/api';
+  }
+  // Local development
+  return 'http://localhost:8000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -65,9 +65,26 @@ const QuickSale: React.FC = () => {
     setIsLoading(true);
     setMessage(null);
 
+    // Trim whitespace from barcode
+    const trimmedBarcode = barcode.trim();
+    
+    if (!trimmedBarcode) {
+      setMessage({ type: 'error', text: 'Please enter a barcode' });
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const response = await apiService.lookupBarcode(barcode);
+      console.log('🔍 Looking up barcode:', trimmedBarcode);
+      const response = await apiService.lookupBarcode(trimmedBarcode);
+      console.log('✅ Barcode lookup response:', response);
       const product = response.data;
+      
+      if (!product || !product.id) {
+        setMessage({ type: 'error', text: 'Invalid product data received' });
+        setIsLoading(false);
+        return;
+      }
 
       // Check if product already exists in cart
       const existingIndex = scannedProducts.findIndex(p => p.id === product.id);
@@ -94,7 +111,19 @@ const QuickSale: React.FC = () => {
         setMessage({ type: 'success', text: `Added ${product.name} to cart` });
       }
     } catch (error: any) {
-      const errorMsg = error.response?.data?.error || 'Product not found';
+      console.error('❌ Barcode lookup error:', error);
+      console.error('Error response:', error.response);
+      console.error('Error data:', error.response?.data);
+      
+      let errorMsg = 'Product not found';
+      if (error.response?.data?.error) {
+        errorMsg = error.response.data.error;
+      } else if (error.response?.data?.barcode) {
+        errorMsg = error.response.data.barcode[0] || 'Invalid barcode';
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
       setMessage({ type: 'error', text: errorMsg });
     } finally {
       setIsLoading(false);

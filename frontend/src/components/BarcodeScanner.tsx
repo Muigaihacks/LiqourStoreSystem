@@ -30,16 +30,21 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
 
     // Set timeout to detect end of scan (USB scanners are very fast)
     scanTimeoutRef.current = setTimeout(() => {
-      if (value.length >= 8) { // Minimum barcode length
-        handleScan(value);
+      const trimmedValue = value.trim();
+      if (trimmedValue.length >= 8) { // Minimum barcode length
+        handleScan(trimmedValue);
       }
     }, 100); // 100ms delay to detect end of rapid input
   };
 
   // Handle manual entry (Enter key or button click)
   const handleManualScan = () => {
-    if (barcode.trim().length >= 8) {
-      handleScan(barcode.trim());
+    const trimmedBarcode = barcode.trim();
+    if (trimmedBarcode.length >= 8) {
+      handleScan(trimmedBarcode);
+    } else {
+      // Show error for short barcodes
+      alert('Barcode must be at least 8 characters long');
     }
   };
 
