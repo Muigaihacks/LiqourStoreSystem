@@ -66,7 +66,10 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 CORS_ALLOWED_ORIGINS = [
     f"https://{host}" for host in ALLOWED_HOSTS if host not in ['localhost', '127.0.0.1']
 ]
-CORS_ALLOW_ALL_ORIGINS = False
+# Also allow the Render domain explicitly
+if 'liqourstoresystem.onrender.com' not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append('https://liqourstoresystem.onrender.com')
+CORS_ALLOW_ALL_ORIGINS = True  # Allow all for now to avoid CORS issues
 CORS_ALLOW_CREDENTIALS = True
 
 # Security Settings

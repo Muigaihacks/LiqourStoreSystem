@@ -57,7 +57,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee i
         
         return queryset
     
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
     def barcode_lookup(self, request):
         """Look up product by barcode"""
         # Get barcode from request and trim whitespace
