@@ -1,0 +1,50 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/sidebar_highlight.css' %}">
+<style id="store-sidebar-highlight">
+/* Sidebar: Auth and Store groups + Tokens link (backup if static file fails) */
+#nav-sidebar-apps [data-group="authentication-and-authorization"] > h2,
+#nav-sidebar-apps [data-group="auth"] > h2 {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(99, 102, 241, 0.14) 100%) !important;
+  color: #1d4ed8 !important;
+  border-left: 3px solid #3b82f6 !important;
+  border-radius: 0 6px 6px 0 !important;
+  padding-left: 12px !important;
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.25) !important;
+}
+.dark #nav-sidebar-apps [data-group="authentication-and-authorization"] > h2,
+.dark #nav-sidebar-apps [data-group="auth"] > h2 {
+  color: #93c5fd !important;
+}
+#nav-sidebar-apps [data-group="store"] > h2 {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.18) 0%, rgba(22, 163, 74, 0.14) 100%) !important;
+  color: #15803d !important;
+  border-left: 3px solid #22c55e !important;
+  border-radius: 0 6px 6px 0 !important;
+  padding-left: 12px !important;
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.25) !important;
+}
+.dark #nav-sidebar-apps [data-group="store"] > h2 {
+  color: #86efac !important;
+}
+#nav-sidebar-apps a[data-nav="authtoken"],
+#nav-sidebar-apps .nav-item-authtoken {
+  background: linear-gradient(90deg, rgba(234, 179, 8, 0.18) 0%, transparent 100%) !important;
+  color: #a16207 !important;
+  font-weight: 600 !important;
+  border-left: 2px solid #eab308 !important;
+}
+.dark #nav-sidebar-apps a[data-nav="authtoken"],
+.dark #nav-sidebar-apps .nav-item-authtoken { color: #fde047 !important; }
+</style>
+{% endblock %}

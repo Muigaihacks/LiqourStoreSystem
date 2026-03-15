@@ -4,7 +4,7 @@ import loginBackground from '../assets/images/login-background.jpeg';
 import liquorIcon from '../assets/icons/liqour-icon.png';
 
 interface LoginProps {
-  onLogin: (username: string, password: string) => void;
+  onLogin: (username: string, password: string) => void | Promise<boolean>;
   isLoading?: boolean;
   error?: string;
 }
@@ -14,10 +14,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, isLoading = false, error }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (username.trim() && password.trim()) {
-      onLogin(username.trim(), password);
+      await onLogin(username.trim(), password);
     }
   };
 
@@ -129,7 +129,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, isLoading = false, error }) => {
 
           <div className="text-center">
             <p className="text-sm text-gray-300">
-              Demo credentials: <span className="font-medium text-white">admin / admin123</span>
+              Use the credentials assigned to you by your admin.
             </p>
           </div>
         </form>

@@ -1,12 +1,19 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Category, Product, Inventory, StockMovement, Sale, SaleItem, Customer, PointTransaction
+from .models import Category, Product, Inventory, StockMovement, Sale, SaleItem, Customer, PointTransaction, UserProfile, Branch
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email']
+
+
+class AuthProfileSerializer(serializers.Serializer):
+    """One frontend profile (branch access) for auth response."""
+    branch_id = serializers.IntegerField(source='branch.id')
+    branch_name = serializers.CharField(source='branch.name')
+    can_use_management_module = serializers.BooleanField()
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -27,8 +34,9 @@ class ProductSerializer(serializers.ModelSerializer):
 class InventorySerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_barcode = serializers.CharField(source='product.barcode', read_only=True)
+    branch_name = serializers.CharField(source='branch.name', read_only=True)
     is_low_stock = serializers.BooleanField(read_only=True)
-    
+
     class Meta:
         model = Inventory
         fields = '__all__'
@@ -36,6 +44,7 @@ class InventorySerializer(serializers.ModelSerializer):
 
 class StockMovementSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
+    branch_name = serializers.CharField(source='branch.name', read_only=True)
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
     
     class Meta:
@@ -73,7 +82,21 @@ class SaleCreateSerializer(serializers.Serializer):
     
     def create(self, validated_data):
         items_data = validated_data.pop('items')
+        request = self.context.get('request')
+        branch_id = request.headers.get('X-Branch-Id') if request else None
         
+        if not branch_id:
+            # Fallback to user's profile branch if available
+            if request and hasattr(request.user, 'userprofile_set'):
+                profile = request.user.userprofile_set.first()
+                if profile:
+                    branch_id = profile.branch_id
+
+        if not branch_id:
+             raise serializers.ValidationError("Branch ID is required for sale creation.")
+
+        branch = Branch.objects.get(id=branch_id)
+
         # Create a default employee for now
         from django.contrib.auth.models import User
         default_employee, created = User.objects.get_or_create(
@@ -88,7 +111,8 @@ class SaleCreateSerializer(serializers.Serializer):
         # Create sale
         sale = Sale.objects.create(
             sale_number=sale_number,
-            employee=default_employee,
+            branch=branch,
+            employee=request.user if request and request.user.is_authenticated else default_employee,
             total_amount=0,  # Will be calculated
             payment_method=validated_data.get('payment_method', 'CASH'),
             customer_name=validated_data.get('customer_name', ''),
@@ -116,20 +140,21 @@ class SaleCreateSerializer(serializers.Serializer):
             
             # Update inventory
             try:
-                inventory = Inventory.objects.get(product=product)
+                inventory = Inventory.objects.get(product=product, branch=branch)
                 previous_stock = inventory.quantity
                 inventory.quantity -= quantity
                 inventory.save()
                 
                 # Create stock movement
                 StockMovement.objects.create(
+                    branch=branch,
                     product=product,
                     movement_type='OUT',
                     quantity=-quantity,
                     previous_stock=previous_stock,
                     new_stock=inventory.quantity,
                     notes=f"Sale #{sale.sale_number}",
-                    created_by=default_employee
+                    created_by=request.user if request and request.user.is_authenticated else default_employee
                 )
             except Inventory.DoesNotExist:
                 pass  # Skip inventory update if not found
@@ -158,10 +183,18 @@ class StockInSerializer(serializers.Serializer):
         product = Product.objects.get(id=validated_data['product_id'])
         quantity = validated_data['quantity']
         notes = validated_data.get('notes', '')
+        request = self.context.get('request')
+        branch_id = request.headers.get('X-Branch-Id') if request else None
+        
+        if not branch_id:
+             raise serializers.ValidationError("Branch ID is required for stock in.")
+             
+        branch = Branch.objects.get(id=branch_id)
         
         # Get or create inventory
         inventory, created = Inventory.objects.get_or_create(
             product=product,
+            branch=branch,
             defaults={'quantity': 0, 'minimum_stock': 5}
         )
         
@@ -171,6 +204,7 @@ class StockInSerializer(serializers.Serializer):
         
         # Create stock movement
         StockMovement.objects.create(
+            branch=branch,
             product=product,
             movement_type='IN',
             quantity=quantity,

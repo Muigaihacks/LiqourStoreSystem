@@ -5,6 +5,52 @@ from decimal import Decimal
 from django.utils import timezone
 
 
+class Branch(models.Model):
+    """Store/branch within an organization. Data (products, sales, inventory) is scoped by branch."""
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=50, unique=True)
+    address = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Branches"
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class UserProfile(models.Model):
+    """
+    Frontend access per branch: one user can have multiple profiles (one per branch).
+    Owner can have one profile for Main and one for Store B, both with Management access,
+    and get a branch switcher on the frontend. Employees typically have one profile (one branch).
+    """
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='profiles',
+        help_text="User who can log into the frontend."
+    )
+    branch = models.ForeignKey(
+        Branch, on_delete=models.CASCADE, related_name='user_profiles',
+        help_text="Branch this profile grants access to. One profile per user per branch."
+    )
+    can_use_management_module = models.BooleanField(
+        default=False,
+        help_text="If true, user sees the Management module on the frontend for this branch."
+    )
+
+    class Meta:
+        ordering = ['user__username', 'branch__name']
+        unique_together = [['user', 'branch']]
+        verbose_name = "Frontend profile (branch access)"
+        verbose_name_plural = "Frontend profiles (branch access)"
+
+    def __str__(self):
+        return f"{self.user.username} — {self.branch.name}"
+
+
 class Category(models.Model):
     """Product categories like Whiskey, Wine, Beer, etc."""
     name = models.CharField(max_length=100, unique=True)
@@ -21,7 +67,7 @@ class Category(models.Model):
 
 
 class Product(models.Model):
-    """Product model with barcode tracking"""
+    """Product model with barcode tracking. Global list (shared across branches)."""
     name = models.CharField(max_length=200)
     barcode = models.CharField(max_length=50, unique=True, help_text="Unique barcode for this product")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
@@ -43,9 +89,8 @@ class Product(models.Model):
 
     @property
     def current_stock(self):
-        """Get current stock level for this product"""
-        inventory = self.inventory_set.first()
-        return inventory.quantity if inventory else 0
+        """Get total stock level for this product across all branches"""
+        return self.inventory_set.aggregate(total=models.Sum('quantity'))['total'] or 0
     
     @property
     def profit_margin(self):
@@ -63,17 +108,19 @@ class Product(models.Model):
 
 
 class Inventory(models.Model):
-    """Inventory tracking for each product"""
-    product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='inventory')
+    """Inventory tracking for each product per branch"""
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='inventory')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='inventory_set')
     quantity = models.PositiveIntegerField(default=0)
     minimum_stock = models.PositiveIntegerField(default=5, help_text="Alert when stock goes below this level")
     last_updated = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name_plural = "Inventories"
+        unique_together = ['branch', 'product']
 
     def __str__(self):
-        return f"{self.product.name} - Stock: {self.quantity}"
+        return f"{self.branch.name} - {self.product.name} - Stock: {self.quantity}"
 
     @property
     def is_low_stock(self):
@@ -89,6 +136,7 @@ class StockMovement(models.Model):
         ('ADJUSTMENT', 'Stock Adjustment'),
     ]
 
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='stock_movements')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stock_movements')
     movement_type = models.CharField(max_length=20, choices=MOVEMENT_TYPES)
     quantity = models.IntegerField(help_text="Positive for IN, negative for OUT")
@@ -104,7 +152,7 @@ class StockMovement(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.product.name} - {self.movement_type} ({self.quantity})"
+        return f"{self.branch.name} - {self.product.name} - {self.movement_type} ({self.quantity})"
 
 
 class Sale(models.Model):
@@ -118,6 +166,11 @@ class Sale(models.Model):
     ]
 
     sale_number = models.CharField(max_length=20, unique=True)
+    branch = models.ForeignKey(
+        Branch, on_delete=models.CASCADE, related_name='sales',
+        null=True, blank=True,
+        help_text="Branch where this sale occurred."
+    )
     employee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sales')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_method = models.CharField(max_length=15, choices=PAYMENT_METHODS, default='CASH')

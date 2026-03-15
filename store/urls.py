@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from django.views.generic import TemplateView
 from . import views
+from . import auth_views
 
 router = DefaultRouter()
 router.register(r'categories', views.CategoryViewSet)
@@ -14,6 +15,9 @@ router.register(r'point-transactions', views.PointTransactionViewSet)
 
 urlpatterns = [
     path('api/', include(router.urls)),
+    path('api/auth/login/', auth_views.login, name='auth_login'),
+    path('api/auth/logout/', auth_views.logout, name='auth_logout'),
+    path('api/auth/me/', auth_views.me, name='auth_me'),
     path('api/create-sale/', views.create_simple_sale, name='create_simple_sale'),
     path('api/award-points/', views.award_points, name='award_points'),
     path('api/backup/create/', views.create_backup, name='create_backup'),

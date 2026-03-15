@@ -15,7 +15,8 @@ import os
 import tempfile
 import zipfile
 
-from .models import Category, Product, Inventory, StockMovement, Sale, SaleItem, Customer, PointTransaction
+from .models import Branch, Category, Product, Inventory, StockMovement, Sale, SaleItem, Customer, PointTransaction
+from .permissions import HasManagementProfile
 from .serializers import (
     CategorySerializer, ProductSerializer, InventorySerializer,
     StockMovementSerializer, SaleSerializer, SaleCreateSerializer,
@@ -24,41 +25,74 @@ from .serializers import (
 )
 
 
-class CategoryViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee interface
+def _management_write_request(request):
+    """True if request is a write (POST/PATCH/PUT/DELETE) that needs Management auth."""
+    method = getattr(request, 'method', '')
+    return method in ('POST', 'PUT', 'PATCH', 'DELETE')
+
+
+class SetRequestEarlyMixin:
+    """Set self.request to the raw request before initialize_request runs, so get_authenticators/get_permissions can use it."""
+    def initialize_request(self, request, *args, **kwargs):
+        self.request = request
+        return super().initialize_request(request, *args, **kwargs)
+
+
+class CategoryViewSet(SetRequestEarlyMixin, viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    authentication_classes = []  # No authentication required
-    permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
+    authentication_classes = []  # Set per-action below
+    permission_classes = [permissions.AllowAny]
+
+    def get_permissions(self):
+        if _management_write_request(self.request):
+            return [permissions.IsAuthenticated(), HasManagementProfile()]
+        return [permissions.AllowAny()]
+
+    def get_authenticators(self):
+        if _management_write_request(self.request):
+            from rest_framework.authentication import TokenAuthentication
+            return [TokenAuthentication()]
+        return []  # Allow unauthenticated access
 
 
-class ProductViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee interface
+class ProductViewSet(SetRequestEarlyMixin, viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    authentication_classes = []  # No authentication required
-    permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
-    
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get_permissions(self):
+        if _management_write_request(self.request):
+            return [permissions.IsAuthenticated(), HasManagementProfile()]
+        return [permissions.AllowAny()]
+
+    def get_authenticators(self):
+        if _management_write_request(self.request):
+            from rest_framework.authentication import TokenAuthentication
+            return [TokenAuthentication()]
+        return []
+
     def get_queryset(self):
+        # Products are global now
         queryset = Product.objects.all()
         category = self.request.query_params.get('category', None)
         search = self.request.query_params.get('search', None)
-        in_stock = self.request.query_params.get('in_stock', None)
+        # Filter by stock presence in a specific branch if requested?
+        # branch_id = self.request.query_params.get('branch_id')
         
         if category:
             queryset = queryset.filter(category__name__icontains=category)
-        
         if search:
             queryset = queryset.filter(
                 Q(name__icontains=search) |
                 Q(barcode__icontains=search) |
                 Q(brand__icontains=search)
             )
-        
-        if in_stock == 'true':
-            queryset = queryset.filter(inventory__quantity__gt=0)
-        elif in_stock == 'false':
-            queryset = queryset.filter(Q(inventory__quantity=0) | Q(inventory__isnull=True))
-        
-        return queryset
+        return queryset.order_by('category', 'name')
+
+    def perform_create(self, serializer):
+        serializer.save()
     
     @action(
         detail=False, 
@@ -176,38 +210,45 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee i
         })
 
 
-class InventoryViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only for employee interface
+class InventoryViewSet(SetRequestEarlyMixin, viewsets.ReadOnlyModelViewSet):
     queryset = Inventory.objects.all()
     serializer_class = InventorySerializer
-    authentication_classes = []  # No authentication required
-    permission_classes = [permissions.AllowAny]  # Allow unauthenticated access
-    
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get_permissions(self):
+        if 'stock_in' in (getattr(self.request, 'path', '') or '') and getattr(self.request, 'method', '') == 'POST':
+            return [permissions.IsAuthenticated(), HasManagementProfile()]
+        return [permissions.AllowAny()]
+
+    def get_authenticators(self):
+        # action may not be set yet when get_authenticators runs; check path and method instead
+        if 'stock_in' in (self.request.path or '') and getattr(self.request, 'method', '') == 'POST':
+            from rest_framework.authentication import TokenAuthentication
+            return [TokenAuthentication()]
+        return []
+
     def get_queryset(self):
-        # Auto-create inventory records for products that don't have one
-        products_without_inventory = Product.objects.filter(inventory__isnull=True, is_active=True)
-        for product in products_without_inventory:
-            Inventory.objects.get_or_create(
-                product=product,
-                defaults={'quantity': 0, 'minimum_stock': 5}
-            )
+        # Inventory is branch-scoped
+        queryset = Inventory.objects.select_related('product', 'branch').filter(product__is_active=True)
+        branch_id = self.request.query_params.get('branch_id') or self.request.headers.get('X-Branch-Id')
         
-        queryset = Inventory.objects.select_related('product').filter(product__is_active=True)
+        try:
+            branch_id = int(branch_id) if branch_id not in (None, '') else None
+        except (TypeError, ValueError):
+            branch_id = None
+            
+        if branch_id is not None:
+            queryset = queryset.filter(branch_id=branch_id)
+            
         low_stock = self.request.query_params.get('low_stock', None)
-        
         if low_stock == 'true':
             queryset = queryset.filter(quantity__lte=F('minimum_stock'))
-        
         return queryset.order_by('product__name')
-    
-    def list(self, request, *args, **kwargs):
-        # Override list to return non-paginated response
-        queryset = self.filter_queryset(self.get_queryset())
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
     
     @action(detail=False, methods=['post'])
     def stock_in(self, request):
-        """Add stock to inventory"""
+        """Add stock to inventory (Management only)."""
         serializer = StockInSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             inventory = serializer.save()

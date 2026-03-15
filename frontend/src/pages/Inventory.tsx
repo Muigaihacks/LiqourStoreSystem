@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExclamationTriangleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { apiService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface InventoryItem {
   id: number;
@@ -24,6 +25,7 @@ interface Product {
 }
 
 const Inventory: React.FC = () => {
+  const { selectedProfile } = useAuth();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,13 +33,17 @@ const Inventory: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('🚀 Inventory component mounted, starting fetch...');
+    console.log('🚀 Inventory component mounted/updated, starting fetch...');
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        console.log('📦 Fetching inventory data...');
-        console.log('API Base URL:', process.env.REACT_APP_API_URL || '/api');
+        console.log('📦 Fetching inventory data for branch:', selectedProfile?.branch_id || 'All');
+        
+        // Pass branch_id explicitly if selected, or rely on api.ts interceptor.
+        // api.ts interceptor uses currentBranchId variable, which is set by AuthContext.
+        // However, passing it explicitly ensures we don't race with interceptor update if it's async (it's not).
+        // Let's rely on the interceptor but key the effect on selectedProfile.
         
         const inventoryResponse = await apiService.getInventory();
         console.log('✅ Full Inventory response object:', inventoryResponse);
@@ -84,7 +90,7 @@ const Inventory: React.FC = () => {
     };
     
     fetchData();
-  }, []);
+  }, [selectedProfile?.branch_id]);
 
   const getProductPrice = (productId: number): string => {
     const product = products.find(p => p.id === productId);

@@ -3,16 +3,14 @@ import axios from 'axios';
 // Base API configuration
 // Use environment variable for production, localhost for development
 const getApiBaseUrl = () => {
-  // Check if we're in production (deployed on Render)
+  // Allow environment variable override
   if (process.env.REACT_APP_API_URL) {
     return process.env.REACT_APP_API_URL;
   }
-  // Production URL (Render)
-  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return 'https://liqourstoresystem.onrender.com/api';
-  }
-  // Local development
-  return 'http://localhost:8000/api';
+  
+  // Always default to local backend on port 8000
+  // This handles localhost, 127.0.0.1, and local network IPs (e.g. 192.168.x.x)
+  return `http://${window.location.hostname}:8000/api`;
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -24,14 +22,75 @@ const api = axios.create({
   },
 });
 
+// Auth token: set after login so all requests send Authorization header
+export function setAuthToken(token: string | null) {
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Token ${token}`;
+  } else {
+    delete api.defaults.headers.common['Authorization'];
+  }
+}
+
+// Branch scope for Management: set from AuthContext selectedProfile
+let currentBranchId: number | null = null;
+export function setApiBranchId(branchId: number | null) {
+  currentBranchId = branchId;
+  if (branchId != null) {
+    api.defaults.headers.common['X-Branch-Id'] = String(branchId);
+  } else {
+    delete api.defaults.headers.common['X-Branch-Id'];
+  }
+}
+api.interceptors.request.use((config) => {
+  if (currentBranchId != null) {
+    config.headers['X-Branch-Id'] = String(currentBranchId);
+  }
+  return config;
+});
+
+export interface AuthProfile {
+  branch_id: number;
+  branch_name: string;
+  can_use_management_module: boolean;
+}
+
+export interface AuthUser {
+  id: number;
+  username: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: AuthUser;
+  profiles: AuthProfile[];
+}
+
+export interface MeResponse {
+  user: AuthUser;
+  profiles: AuthProfile[];
+}
+
+// Use paths without leading slash so axios appends to baseURL (e.g. http://localhost:8000/api + auth/login/)
+export const authApi = {
+  login: (username: string, password: string) =>
+    api.post<LoginResponse>('auth/login/', { username, password }),
+  logout: () => api.post('auth/logout/'),
+  me: () => api.get<MeResponse>('auth/me/'),
+};
+
 // API interfaces matching Django models
 export interface Product {
   id: number;
   name: string;
   barcode: string;
+  branch?: number;
   category: number;
   category_name: string;
   price: string;
+  buying_price?: string;
   size: string;
   age: string;
   brand: string;
@@ -102,15 +161,25 @@ interface PaginatedResponse<T> {
 // API service functions
 export const apiService = {
   // Products
-  getProducts: () => api.get<PaginatedResponse<Product>>('/products/'),
+  getProducts: (params?: { branch_id?: number; search?: string; category?: string }) =>
+    api.get<PaginatedResponse<Product>>('/products/', { params }),
   getProduct: (id: number) => api.get<Product>(`/products/${id}/`),
+  createProduct: (data: Partial<Product> & { branch?: number }) => api.post<Product>('/products/', data),
+  updateProduct: (id: number, data: Partial<Product>) => api.patch<Product>(`/products/${id}/`, data),
+  deleteProduct: (id: number) => api.delete(`/products/${id}/`),
   getTopSellingProducts: (days: number = 30) => api.get(`/products/top_selling/?days=${days}`),
   
   // Categories
   getCategories: () => api.get<PaginatedResponse<Category>>('/categories/'),
+  createCategory: (data: Partial<Category>) => api.post<Category>('/categories/', data),
+  updateCategory: (id: number, data: Partial<Category>) => api.patch<Category>(`/categories/${id}/`, data),
+  deleteCategory: (id: number) => api.delete(`/categories/${id}/`),
   
   // Inventory
-  getInventory: () => api.get<PaginatedResponse<Inventory>>('/inventory/'),
+  getInventory: (params?: { branch_id?: number }) =>
+    api.get<PaginatedResponse<Inventory>>('/inventory/', { params }),
+  stockIn: (data: { product_id: number; quantity: number; notes?: string }) =>
+    api.post<Inventory>('/inventory/stock_in/', data),
   
   // Sales
   getSales: () => api.get<PaginatedResponse<Sale>>('/sales/'),
@@ -124,7 +193,7 @@ export const apiService = {
   lookupBarcode: (barcode: string) => api.post<Product>('/products/barcode_lookup/', { barcode }),
   
   // Customers
-  getCustomers: () => api.get('/customers/'),
+  getCustomers: (params?: { phone?: string }) => api.get('/customers/', { params }),
   getCustomer: (id: number) => api.get(`/customers/${id}/`),
   registerCustomer: (customerData: any) => api.post('/customers/register/', customerData),
   getPrizeEligibleCustomers: (threshold: number = 100) => api.get(`/customers/prize_eligible/?threshold=${threshold}`),

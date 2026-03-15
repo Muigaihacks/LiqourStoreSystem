@@ -10,12 +10,13 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = 'Creates a superuser from environment variables'
+    help = 'Creates a superuser from environment variables (ADMIN_* or TEMP_ADMIN_* for tenant bootstrap).'
 
     def handle(self, *args, **options):
-        admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
-        admin_email = os.environ.get('ADMIN_EMAIL', 'admin@liquorstore.com')
-        admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+        # Support TEMP_ADMIN_* for tenant bootstrap (owner first login); fall back to ADMIN_*
+        admin_username = os.environ.get('TEMP_ADMIN_USERNAME') or os.environ.get('ADMIN_USERNAME', 'admin')
+        admin_email = os.environ.get('TEMP_ADMIN_EMAIL') or os.environ.get('ADMIN_EMAIL', 'admin@liquorstore.com')
+        admin_password = os.environ.get('TEMP_ADMIN_PASSWORD') or os.environ.get('ADMIN_PASSWORD', 'admin123')
 
         # Check if user already exists
         if User.objects.filter(username=admin_username).exists():

@@ -80,13 +80,27 @@ const CustomerLookup: React.FC<CustomerLookupProps> = ({ onCustomerSelect, showR
     setCustomer(null);
     
     try {
-      const response = await apiService.getCustomers();
-      const customers = response.data.results;
+      // Use server-side filtering for robust lookup
+      const response = await apiService.getCustomers({ phone: searchPhone.trim() });
+      const customers = response.data.results || response.data;
       
-      // Find customer by phone number (handle all Kenyan formats)
-      const foundCustomer = customers.find((c: Customer) => 
-        phoneNumbersMatch(c.phone_number, searchPhone.trim())
-      );
+      // The backend filters by icontains, so we might get multiple partial matches.
+      // We should still verify exact match (or close enough) on the client if needed,
+      // but usually the first result is good if unique.
+      // Let's use our helper to be sure if multiple returned.
+      
+      let foundCustomer = null;
+      if (Array.isArray(customers)) {
+          foundCustomer = customers.find((c: Customer) => 
+            phoneNumbersMatch(c.phone_number, searchPhone.trim())
+          );
+          
+          // Fallback: if backend search worked but our loose matcher is too strict, just take the first result
+          // because backend filter `phone_number__icontains` is quite specific for numbers.
+          if (!foundCustomer && customers.length > 0) {
+              foundCustomer = customers[0];
+          }
+      }
       
       if (foundCustomer) {
         setCustomer(foundCustomer);
@@ -99,6 +113,8 @@ const CustomerLookup: React.FC<CustomerLookupProps> = ({ onCustomerSelect, showR
       }
     } catch (error) {
       console.error('Error searching customer:', error);
+      // Don't show not found on error, maybe show error? 
+      // For now, consistent behavior:
       setShowNotFound(true);
     } finally {
       setIsSearching(false);

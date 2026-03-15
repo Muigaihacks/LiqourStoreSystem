@@ -15,10 +15,26 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.shortcuts import redirect
+from django.urls import path, include, reverse
+from django.contrib.admin.views.decorators import staff_member_required
+
+from store.models import Branch
+
+
+@staff_member_required
+def set_current_branch(request, branch_id):
+    """Set the current branch in session for admin branch switcher. Redirects to admin or next."""
+    branch = Branch.objects.filter(pk=branch_id, is_active=True).first()
+    if branch:
+        request.session["current_branch_id"] = branch_id
+    next_url = request.GET.get("next") or reverse("admin:index")
+    return redirect(next_url)
+
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', include('store.urls')),  # This includes the /api/ paths from store.urls
-    path('api-auth/', include('rest_framework.urls')),
+    path("admin/set-branch/<int:branch_id>/", set_current_branch, name="admin_set_branch"),
+    path("admin/", admin.site.urls),
+    path("", include("store.urls")),  # This includes the /api/ paths from store.urls
+    path("api-auth/", include("rest_framework.urls")),
 ]

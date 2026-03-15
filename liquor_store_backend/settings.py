@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from django.urls import reverse_lazy
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -31,6 +32,9 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'unfold',
+    'unfold.contrib.filters',
+    'unfold.contrib.forms',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,6 +44,7 @@ INSTALLED_APPS = [
     
     # Third party apps
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     
     # Local apps
@@ -62,13 +67,14 @@ ROOT_URLCONF = 'liquor_store_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'store.context_processors.admin_branch_switcher',
             ],
         },
     },
@@ -123,6 +129,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -144,12 +151,117 @@ REST_FRAMEWORK = {
 
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # React development server
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins for development
 
-# Custom User Model (if needed later)
-# AUTH_USER_MODEL = 'store.User'
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-branch-id",
+]
+
+# Unfold Admin Configuration
+UNFOLD = {
+    "SITE_TITLE": "Liquor Store Admin",
+    "SITE_HEADER": "Liquor Store Admin",
+    "SITE_URL": "/",
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": "Navigation",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Dashboard",
+                        "icon": "dashboard",
+                        "link": reverse_lazy("admin:index"),
+                    },
+                ],
+            },
+            {
+                "title": "Store Management",
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": "Branches",
+                        "icon": "store",
+                        "link": reverse_lazy("admin:store_branch_changelist"),
+                    },
+                    {
+                        "title": "Categories",
+                        "icon": "category",
+                        "link": reverse_lazy("admin:store_category_changelist"),
+                    },
+                    {
+                        "title": "Products",
+                        "icon": "inventory_2",
+                        "link": reverse_lazy("admin:store_product_changelist"),
+                    },
+                    {
+                        "title": "Inventories",
+                        "icon": "inventory",
+                        "link": reverse_lazy("admin:store_inventory_changelist"),
+                    },
+                    {
+                        "title": "Sales",
+                        "icon": "point_of_sale",
+                        "link": reverse_lazy("admin:store_sale_changelist"),
+                    },
+                    {
+                        "title": "Stock Updates",
+                        "icon": "update",
+                        "link": reverse_lazy("admin:store_stockmovement_changelist"),
+                    },
+                    {
+                        "title": "Loyalty Customers",
+                        "icon": "loyalty",
+                        "link": reverse_lazy("admin:store_customer_changelist"),
+                    },
+                    {
+                        "title": "Point Transactions",
+                        "icon": "receipt_long",
+                        "link": reverse_lazy("admin:store_pointtransaction_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": "Authentication & Authorization",
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": "Users",
+                        "icon": "people",
+                        "link": reverse_lazy("admin:auth_user_changelist"),
+                    },
+                    {
+                        "title": "Groups",
+                        "icon": "groups",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                    },
+                ],
+            },
+             {
+                "title": "Tokens",
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": "Tokens",
+                        "icon": "key",
+                        "link": reverse_lazy("admin:authtoken_tokenproxy_changelist"),
+                    },
+                ],
+            },
+        ],
+    },
+    "STYLES": [
+        lambda request: "admin/css/sidebar_highlight.css",
+    ],
+}
